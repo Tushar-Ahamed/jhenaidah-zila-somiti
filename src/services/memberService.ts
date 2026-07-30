@@ -83,114 +83,27 @@ export async function getMember(id: string): Promise<MemberProfile | null> {
 }
 
 export async function listMembers(status?: MemberStatus): Promise<MemberProfile[]> {
-  let dbMembers: MemberProfile[] = [];
-
-  // 1. Fetch from Supabase 'members' table
+  // Clear any old stale local storage caches that cause duplicate cards across browsers
   try {
-    let q = supabase.from(COL).select('*').order('created_at', { ascending: false });
-    if (status) q = q.eq('status', status);
-    const { data, error } = await q;
-    if (!error && data && data.length > 0) {
-      dbMembers = data.map((r) => mapRow(r as Record<string, unknown>));
-    }
-  } catch {
-    // ignore
-  }
-
-  // 2. Fetch from Supabase 'profiles' table to include all registered users
-  try {
-    let qProf = supabase.from('profiles').select('*');
-    const { data: profData, error: profError } = await qProf;
-    if (!profError && profData && profData.length > 0) {
-      const profMembers: MemberProfile[] = profData
-        .filter((p: any) => p.name && p.upazila)
-        .map((p: any) => ({
-          id: p.id,
-          uid: p.id,
-          name: p.name || 'সদস্য',
-          photo: sanitizePhotoUrl(p.photo_url || p.photo),
-          department: p.department || 'অনুল্লেখিত',
-          session: p.session || p.student_session || '২০২২-২৩',
-          hall: p.hall || 'অনুল্লেখিত',
-          upazila: (p.upazila || 'ঝিনাইদহ সদর') as UpazilaName,
-          phone: p.phone || '',
-          email: p.email || '',
-          bloodGroup: p.blood_group || p.bloodGroup || 'B+',
-          bio: p.bio || `${p.name} - ${p.position || 'সদস্য'}`,
-          status: p.status === 'suspended' ? 'rejected' : p.status === 'pending' ? 'pending' : 'approved',
-          createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
-          updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now(),
-        }));
-      dbMembers = [...profMembers, ...dbMembers];
-    }
-  } catch {
-    // ignore
-  }
-
-  // 3. Sync any local profiles on this device to Cloud Sync database
-  try {
-    await syncAllLocalMembersToCloud();
+    localStorage.removeItem('jhenaidah_approved_members_v1');
+    localStorage.removeItem('jhenaidah_registered_users_v1');
+    localStorage.removeItem('jhenaidah_demo_user');
   } catch {
     // ignore
   }
 
   let combined: MemberProfile[] = [...MEMBERS];
 
-  // 4. Fetch from global Cloud Sync Database (works across all devices & phones)
   try {
     const cloudMembers = await fetchCloudMembers();
     if (cloudMembers.length > 0) {
-      combined = [...combined, ...cloudMembers.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) }))];
-    }
-  } catch {
-    // ignore
-  }
-
-  combined = [...combined, ...dbMembers];
-
-  // 5. Merge local storage persisted members (jhenaidah_approved_members_v1 & jhenaidah_registered_users_v1)
-  try {
-    const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
-    if (memRaw) {
-      const localApproved: MemberProfile[] = JSON.parse(memRaw);
-      combined = [...combined, ...localApproved.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) }))];
-    }
-
-    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
-    if (regRaw) {
-      const regList = JSON.parse(regRaw);
-      const localRegistered: MemberProfile[] = regList
-        .filter((r: any) => r.profile)
-        .map((r: any) => ({
-          id: r.profile.uid || `reg-${r.email}`,
-          uid: r.profile.uid,
-          name: r.profile.name,
-          photo: sanitizePhotoUrl(r.profile.photoUrl),
-          department: r.profile.department || 'অনুল্লেখিত',
-          session: r.profile.studentSession || '২০২২-২৩',
-          hall: r.profile.hall || 'অনুল্লেখিত',
-          upazila: (r.profile.upazila || 'ঝিনাইদহ সদর') as UpazilaName,
-          phone: r.profile.phone || '',
-          email: r.email,
-          bloodGroup: r.profile.bloodGroup || 'B+',
-          bio: r.profile.bio || `${r.profile.name} - ${r.profile.position || 'সদস্য'}`,
-          status: r.profile.status === 'pending' ? 'pending' : 'approved',
-          createdAt: r.profile.createdAt || Date.now(),
-          updatedAt: r.profile.updatedAt || Date.now(),
-        }));
-      combined = [...combined, ...localRegistered];
+      combined = deduplicateMemberList([...MEMBERS, ...cloudMembers]);
     }
   } catch {
     // ignore
   }
 
   let finalMembers = deduplicateMemberList(combined);
-
-  try {
-    localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify(finalMembers));
-  } catch {
-    // ignore
-  }
 
   if (status) {
     finalMembers = finalMembers.filter((m) => m.status === status);
