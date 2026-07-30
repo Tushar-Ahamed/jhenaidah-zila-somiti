@@ -129,7 +129,7 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
 
   // 3. Sync any local profiles on this device to Cloud Sync database
   try {
-    syncAllLocalMembersToCloud();
+    await syncAllLocalMembersToCloud();
   } catch {
     // ignore
   }
@@ -227,6 +227,12 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
   }
 
   let finalMembers = Array.from(uniqueMap.values());
+  try {
+    localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify(finalMembers));
+  } catch {
+    // ignore
+  }
+
   if (status) {
     finalMembers = finalMembers.filter((m) => m.status === status);
   }

@@ -9,7 +9,9 @@ export async function fetchCloudMembers(): Promise<MemberProfile[]> {
     if (!res.ok) return [];
     const data = await res.json();
     if (data?.data?.members && Array.isArray(data.data.members)) {
-      return (data.data.members as MemberProfile[]).filter((m) => m && m.name && !m.id.startsWith('u1') && !m.id.startsWith('u2') && !m.id.startsWith('u3'));
+      return (data.data.members as MemberProfile[]).filter(
+        (m) => m && m.name && !m.id?.startsWith('u1') && !m.id?.startsWith('u2') && !m.id?.startsWith('u3')
+      );
     }
   } catch {
     // best-effort
@@ -49,7 +51,7 @@ export async function syncMemberToCloud(member: MemberProfile): Promise<void> {
       ...previous,
       ...member,
       status: 'approved',
-      photo: (member.photo && !member.photo.startsWith('blob:')) ? member.photo : previous?.photo || '',
+      photo: member.photo && !member.photo.startsWith('blob:') ? member.photo : previous?.photo || '',
     });
     await saveCloudMembers(Array.from(map.values()));
   } catch {
@@ -59,6 +61,15 @@ export async function syncMemberToCloud(member: MemberProfile): Promise<void> {
 
 export async function syncAllLocalMembersToCloud(): Promise<void> {
   try {
+    const existing = await fetchCloudMembers();
+    const map = new Map<string, MemberProfile>();
+    for (const m of existing) {
+      if (m && m.name) {
+        const key = m.email ? m.email.toLowerCase() : m.id;
+        map.set(key, { ...m, status: 'approved' });
+      }
+    }
+
     const localProfiles: MemberProfile[] = [];
 
     const demoRaw = localStorage.getItem('jhenaidah_demo_user');
@@ -119,8 +130,23 @@ export async function syncAllLocalMembersToCloud(): Promise<void> {
       }
     }
 
+    let hasNew = false;
     for (const p of localProfiles) {
-      await syncMemberToCloud(p);
+      const key = p.email ? p.email.toLowerCase() : p.id;
+      const prev = map.get(key);
+      if (!prev || prev.name !== p.name || (p.photo && !p.photo.startsWith('blob:') && p.photo !== prev.photo)) {
+        map.set(key, {
+          ...prev,
+          ...p,
+          status: 'approved',
+          photo: p.photo && !p.photo.startsWith('blob:') ? p.photo : prev?.photo || '',
+        });
+        hasNew = true;
+      }
+    }
+
+    if (hasNew || map.size > existing.length) {
+      await saveCloudMembers(Array.from(map.values()));
     }
   } catch {
     // best-effort
