@@ -117,6 +117,15 @@ export async function syncAllLocalMembersToCloud(): Promise<void> {
           const c = localStorage.getItem(`avatar-cache:${email.toLowerCase()}`);
           if (c && !c.includes('unsplash.com') && !c.startsWith('blob:')) return c;
         }
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('avatar-cache:')) {
+            const val = localStorage.getItem(k);
+            if (val && !val.includes('unsplash.com') && !val.startsWith('blob:')) {
+              return val;
+            }
+          }
+        }
       } catch {
         // ignore
       }
