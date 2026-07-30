@@ -104,15 +104,36 @@ export async function syncAllLocalMembersToCloud(): Promise<void> {
     const existing = await fetchCloudMembers();
     const localProfiles: MemberProfile[] = [];
 
+    const getCachedPhoto = (uid?: string, email?: string, existingPhoto?: string) => {
+      if (existingPhoto && !existingPhoto.includes('unsplash.com') && !existingPhoto.startsWith('blob:')) {
+        return existingPhoto;
+      }
+      try {
+        if (uid) {
+          const c = localStorage.getItem(`avatar-cache:${uid}`);
+          if (c && !c.includes('unsplash.com') && !c.startsWith('blob:')) return c;
+        }
+        if (email) {
+          const c = localStorage.getItem(`avatar-cache:${email.toLowerCase()}`);
+          if (c && !c.includes('unsplash.com') && !c.startsWith('blob:')) return c;
+        }
+      } catch {
+        // ignore
+      }
+      return existingPhoto || '';
+    };
+
     const demoRaw = localStorage.getItem('jhenaidah_demo_user');
     if (demoRaw) {
       const demo = JSON.parse(demoRaw);
       if (demo && demo.name && (demo.email || demo.uid)) {
+        const rawPhoto = demo.photoUrl || demo.photo;
+        const photo = getCachedPhoto(demo.uid, demo.email, rawPhoto);
         localProfiles.push({
           id: demo.uid || `demo-${demo.email}`,
           uid: demo.uid,
           name: demo.name,
-          photo: (demo.photoUrl || demo.photo) && !(demo.photoUrl || demo.photo).startsWith('blob:') ? (demo.photoUrl || demo.photo) : '',
+          photo,
           department: demo.department || 'অনুল্লেখিত',
           session: demo.studentSession || '২০২২-২৩',
           hall: demo.hall || 'অনুল্লেখিত',
@@ -132,7 +153,10 @@ export async function syncAllLocalMembersToCloud(): Promise<void> {
     if (memRaw) {
       const memList: MemberProfile[] = JSON.parse(memRaw);
       for (const m of memList) {
-        if (m && m.name) localProfiles.push({ ...m, status: 'approved' });
+        if (m && m.name) {
+          const photo = getCachedPhoto(m.uid || m.id, m.email, m.photo);
+          localProfiles.push({ ...m, photo, status: 'approved' });
+        }
       }
     }
 
@@ -141,11 +165,12 @@ export async function syncAllLocalMembersToCloud(): Promise<void> {
       const regList = JSON.parse(regRaw);
       for (const r of regList) {
         if (r.profile && r.profile.name) {
+          const photo = getCachedPhoto(r.profile.uid, r.email, r.profile.photoUrl);
           localProfiles.push({
             id: r.profile.uid || `reg-${r.email}`,
             uid: r.profile.uid,
             name: r.profile.name,
-            photo: r.profile.photoUrl && !r.profile.photoUrl.startsWith('blob:') ? r.profile.photoUrl : '',
+            photo,
             department: r.profile.department || 'অনুল্লেখিত',
             session: r.profile.studentSession || '২০২২-২৩',
             hall: r.profile.hall || 'অনুল্লেখিত',
@@ -163,9 +188,7 @@ export async function syncAllLocalMembersToCloud(): Promise<void> {
     }
 
     const merged = deduplicateMemberList([...existing, ...localProfiles]);
-    if (merged.length >= existing.length) {
-      await saveCloudMembers(merged);
-    }
+    await saveCloudMembers(merged);
   } catch {
     // best-effort
   }
