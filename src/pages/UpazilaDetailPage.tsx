@@ -11,7 +11,8 @@ import { listNotices, listEvents, listGallery } from '@/services/contentService'
 import { listApprovedMembers } from '@/services/memberService';
 import { listCommitteeMembers } from '@/services/committeeService';
 import type { Notice, OrgEvent, GalleryItem, MemberProfile, UpazilaName, CommitteeMemberRecord } from '@/types';
-import { ArrowLeft, MapPin, Users, UserCheck, Star, CalendarDays, Pin, FileText, X, Phone, Mail } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { ArrowLeft, MapPin, Users, UserCheck, Star, CalendarDays, Pin, FileText, X, Phone, Mail, Lock, LogIn, UserPlus } from 'lucide-react';
 import { toBnNumber, formatBnDate, relativeBn, isUpcoming, classNames } from '@/utils/format';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -31,6 +32,7 @@ const noticeVariant: Record<string, 'red' | 'green' | 'amber' | 'blue'> = {
 };
 
 export function UpazilaDetailPage() {
+  const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
   const upazila = UPAZILAS.find((u) => u.id === id);
 
@@ -177,7 +179,29 @@ export function UpazilaDetailPage() {
             </StaggerGroup>
           )
         ) : tab === 'members' ? (
-          members.length === 0 ? (
+          !user ? (
+            <FadeIn>
+              <div className="rounded-3xl border border-bd-green-200 dark:border-bd-green-800/60 bg-gradient-to-br from-bd-green-50/90 via-white to-bd-green-50/40 dark:from-bd-green-950/40 dark:via-gray-900 dark:to-gray-950 p-8 text-center shadow-xl backdrop-blur">
+                <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-bd-green-600 text-white shadow-md">
+                  <Lock className="h-8 w-8" />
+                </div>
+                <h3 className="mt-4 text-xl font-bold text-gray-900 dark:text-white">
+                  উপজেলার সদস্যদের তথ্য দেখতে লগইন আবশ্যক
+                </h3>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 max-w-lg mx-auto leading-relaxed">
+                  সদস্যদের গোপনীয়তা সুরক্ষার জন্য ইমেইল, ফোন নম্বর ও বিস্তারিত পরিচিতি শুধু রেজিস্টার্ড সদস্যদের নিকট দৃশ্যমান।
+                </p>
+                <div className="mt-6 flex flex-wrap justify-center gap-3">
+                  <Link to="/login" className="btn-primary px-6 py-2">
+                    <LogIn className="h-4 w-4" /> লগইন করুন
+                  </Link>
+                  <Link to="/register" className="btn-secondary px-6 py-2">
+                    <UserPlus className="h-4 w-4" /> নিবন্ধন করুন
+                  </Link>
+                </div>
+              </div>
+            </FadeIn>
+          ) : members.length === 0 ? (
             <EmptyState icon={<Users className="h-8 w-8" />} title="কোনো সদস্য নেই" description="এই উপজেলায় এখনো কোনো সদস্য যুক্ত নেই।" />
           ) : (
             <StaggerGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

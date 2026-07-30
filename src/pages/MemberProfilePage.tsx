@@ -9,7 +9,11 @@ import { SkeletonCard } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ArrowLeft, Mail, Phone, MapPin, Facebook, Linkedin, Droplet, GraduationCap, Building, CalendarDays, User } from 'lucide-react';
 
+import { useAuth } from '@/context/AuthContext';
+import { Lock, LogIn, UserPlus } from 'lucide-react';
+
 export function MemberProfilePage() {
+  const { user: currentUser } = useAuth();
   const { id } = useParams<{ id: string }>();
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,6 +27,34 @@ export function MemberProfilePage() {
     })();
     return () => { active = false; };
   }, [id]);
+
+  if (!currentUser) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-12">
+        <FadeIn>
+          <div className="rounded-3xl border border-bd-green-200 dark:border-bd-green-800/60 bg-gradient-to-br from-bd-green-50/90 via-white to-bd-green-50/40 dark:from-bd-green-950/40 dark:via-gray-900 dark:to-gray-950 p-8 sm:p-12 text-center shadow-xl backdrop-blur">
+            <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-bd-green-600 text-white shadow-lg">
+              <Lock className="h-10 w-10" />
+            </div>
+            <h2 className="mt-6 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+              সদস্যের বিস্তারিত প্রোফাইল দেখতে লগইন করুন
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-300 max-w-xl mx-auto leading-relaxed">
+              সদস্যদের গোপনীয়তা সুরক্ষার জন্য ইমেইল, ফোন নম্বর ও বিস্তারিত পরিচিতি শুধু রেজিস্টার্ড সদস্যদের নিকট দৃশ্যমান।
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Link to="/login" className="btn-primary px-8 py-3 text-base shadow-md">
+                <LogIn className="h-5 w-5" /> লগইন করুন
+              </Link>
+              <Link to="/register" className="btn-secondary px-8 py-3 text-base">
+                <UserPlus className="h-5 w-5" /> নিবন্ধন করুন
+              </Link>
+            </div>
+          </div>
+        </FadeIn>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

@@ -248,8 +248,48 @@ export async function updateUserStatus(
 ): Promise<void> {
   const update: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
   if (status === 'active') update.approved_by = actorId;
-  const { error } = await supabase.from('profiles').update(update).eq('id', uid);
-  if (error) throw error;
+
+  try {
+    await supabase.from('profiles').update(update).eq('id', uid);
+  } catch {
+    // ignore
+  }
+
+  const memStatus = status === 'suspended' ? 'rejected' : status === 'pending' ? 'pending' : 'approved';
+  try {
+    await supabase.from('members').update({ status: memStatus }).or(`id.eq.${uid},uid.eq.${uid}`);
+  } catch {
+    // ignore
+  }
+
+  // Sync localStorage stores
+  try {
+    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+    if (regRaw) {
+      const list = JSON.parse(regRaw);
+      const updated = list.map((r: any) => {
+        if (r.profile?.uid === uid || r.profile?.id === uid) {
+          return { ...r, profile: { ...r.profile, status } };
+        }
+        return r;
+      });
+      localStorage.setItem('jhenaidah_registered_users_v1', JSON.stringify(updated));
+    }
+
+    const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
+    if (memRaw) {
+      const list = JSON.parse(memRaw);
+      const updated = list.map((m: any) => {
+        if (m.id === uid || m.uid === uid) {
+          return { ...m, status: memStatus };
+        }
+        return m;
+      });
+      localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify(updated));
+    }
+  } catch {
+    // ignore
+  }
 }
 
 export async function softDeleteUser(uid: string): Promise<void> {

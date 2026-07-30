@@ -13,9 +13,13 @@ import { Search, SlidersHorizontal, X, Users, ChevronLeft, ChevronRight, Phone, 
 import { useDebounce } from '@/hooks/useDebounce';
 import { toBnNumber, classNames } from '@/utils/format';
 
+import { useAuth } from '@/context/AuthContext';
+import { Lock, LogIn, UserPlus } from 'lucide-react';
+
 const PAGE_SIZE = 9;
 
 export function MembersPage() {
+  const { user } = useAuth();
   const [members, setMembers] = useState<MemberProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -69,6 +73,31 @@ export function MembersPage() {
         <h1 className="section-title mt-4">আমাদের সদস্য</h1>
         <p className="section-subtitle max-w-2xl">ঝিনাইদহ জেলা সমিতির অনুমোদিত সদস্যদের তালিকা। যেকোনো সদস্য কার্ডে ক্লিক করে নাম, ফোন নম্বর, বিভাগ, সেশন ও ইমেইল বিস্তারিত দেখুন।</p>
       </FadeIn>
+
+      {!user ? (
+        <FadeIn delay={0.1}>
+          <div className="my-8 rounded-3xl border border-bd-green-200 dark:border-bd-green-800/60 bg-gradient-to-br from-bd-green-50/90 via-white to-bd-green-50/40 dark:from-bd-green-950/40 dark:via-gray-900 dark:to-gray-950 p-8 sm:p-12 text-center shadow-xl backdrop-blur">
+            <div className="mx-auto grid h-20 w-20 place-items-center rounded-3xl bg-bd-green-600 text-white shadow-lg">
+              <Lock className="h-10 w-10" />
+            </div>
+            <h2 className="mt-6 text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+              সদস্যদের তথ্য দেখতে লগইন আবশ্যক
+            </h2>
+            <p className="mt-3 text-sm sm:text-base text-gray-600 dark:text-gray-300 max-w-2xl mx-auto leading-relaxed">
+              নিরাপত্তা ও গোপনীয়তা রক্ষার স্বার্থে ঝিনাইদহ জেলা সমিতির সদস্যদের ফোন নম্বর, ইমেইল ও পরিচিতি তথ্য শুধু নিবন্ধিত সদস্যদের জন্য সংরক্ষিত। তথ্য দেখতে অনুগ্রহ করে লগইন করুন।
+            </p>
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
+              <Link to="/login" className="btn-primary px-8 py-3 text-base shadow-md">
+                <LogIn className="h-5 w-5" /> লগইন করুন
+              </Link>
+              <Link to="/register" className="btn-secondary px-8 py-3 text-base">
+                <UserPlus className="h-5 w-5" /> নতুন নিবন্ধন করুন
+              </Link>
+            </div>
+          </div>
+        </FadeIn>
+      ) : (
+        <>
 
       {/* Search + filter toggle */}
       <div className="mt-8 flex flex-col sm:flex-row gap-3">
@@ -314,6 +343,8 @@ export function MembersPage() {
             </div>
           </div>
         </Modal>
+      )}
+      </>
       )}
     </div>
   );
