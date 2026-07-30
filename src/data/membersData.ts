@@ -2,8 +2,8 @@ import type { MemberProfile } from '@/types';
 
 export const MEMBERS: MemberProfile[] = [
   {
-    id: '1b3bfad2-d305-4974-b351-aa8858ac7a5d',
-    uid: '1b3bfad2-d305-4974-b351-aa8858ac7a5d',
+    id: '68d0ed85-d0a6-4103-8e6d-d67e3a911c94',
+    uid: '68d0ed85-d0a6-4103-8e6d-d67e3a911c94',
     name: 'Tushar Ahamed',
     email: 'tusharahamed968@gmail.com',
     department: 'কম্পিউটার সায়েন্স অ্যান্ড ইঞ্জিনিয়ারিং (CSE)',
@@ -36,20 +36,20 @@ export const MEMBERS: MemberProfile[] = [
     updatedAt: 1785449778079,
   },
   {
-    id: 'm-mahin',
-    uid: 'm-mahin',
+    id: '97596ce0-1802-4fac-ba13-b57f60b97a43',
+    uid: '97596ce0-1802-4fac-ba13-b57f60b97a43',
     name: 'MD Arafat Zaman Mahin',
-    email: 'mahin@gmail.com',
+    email: 'mfarafatzamanmahin@gmail.com',
     department: 'পদার্থবিজ্ঞান',
     session: '২০২৫-২৬',
-    hall: 'শহীদ হাবিবুর রহমান হল',
+    hall: 'শহীদ হবিবুর রহমান হল',
     upazila: 'ঝিনাইদহ সদর',
     bloodGroup: 'B+',
-    phone: '01700000000',
+    phone: '01572907537',
     photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
     bio: 'MD Arafat Zaman Mahin - শিক্ষার্থী',
     status: 'approved',
-    createdAt: 1785451108204,
-    updatedAt: 1785451108204,
+    createdAt: 1785452508272,
+    updatedAt: 1785452508272,
   },
 ];
