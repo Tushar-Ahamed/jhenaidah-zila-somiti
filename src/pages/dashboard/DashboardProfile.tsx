@@ -3,6 +3,7 @@ import { FadeIn } from '@/components/ui/FadeIn';
 import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/Badge';
 import { updateOwnProfile, writeAuditLog } from '@/services/userService';
+import { getMember } from '@/services/memberService';
 import { deleteProfileImageByUrl, optimizeImageForUpload, uploadAvatar } from '@/services/uploadService';
 import { ROLE_LABELS, STATUS_LABELS, UPAZILA_OPTIONS, type UpazilaName } from '@/types';
 import { Activity, Award, BookOpen, Briefcase, Calendar, Camera, Clock3, Globe, ImagePlus, Loader2, Mail, MapPin, Phone, Save, Shield, Sparkles, User, X } from 'lucide-react';
@@ -23,7 +24,7 @@ interface FormValues {
 }
 
 export function DashboardProfile() {
-  const { user, refreshUser } = useAuth();
+  const { user, firestoreUser, refreshUser } = useAuth();
   const [editing, setEditing] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -45,13 +46,13 @@ export function DashboardProfile() {
       name: user?.displayName ?? '',
       upazila: user?.upazila ?? 'ঝিনাইদহ সদর',
       position: user?.position ?? '',
-      department: '',
-      studentSession: '২০২২-২৩',
-      bloodGroup: 'B+',
-      phone: '',
+      department: firestoreUser?.department ?? '',
+      studentSession: firestoreUser?.studentSession ?? '২০২২-২৩',
+      bloodGroup: firestoreUser?.bloodGroup ?? 'B+',
+      phone: firestoreUser?.phone ?? '',
       email: user?.email ?? '',
-      hall: '',
-      bio: '',
+      hall: firestoreUser?.hall ?? '',
+      bio: firestoreUser?.bio ?? '',
     },
   });
 
@@ -72,19 +73,38 @@ export function DashboardProfile() {
   }, [user?.uid]);
 
   useEffect(() => {
-    reset({
-      name: user?.displayName ?? '',
-      upazila: user?.upazila ?? 'ঝিনাইদহ সদর',
-      position: user?.position ?? '',
-      department: user?.department ?? '',
-      studentSession: user?.studentSession ?? '২০২২-২৩',
-      bloodGroup: user?.bloodGroup ?? 'B+',
-      phone: user?.phone ?? '',
-      email: user?.email ?? '',
-      hall: user?.hall ?? '',
-      bio: user?.bio ?? '',
-    });
-  }, [reset, user]);
+    if (!user?.uid) return;
+    let active = true;
+    (async () => {
+      const fullMember = await getMember(user.uid);
+      if (!active) return;
+
+      const name = firestoreUser?.name || fullMember?.name || user.displayName || '';
+      const upazila = firestoreUser?.upazila || fullMember?.upazila || user.upazila || 'ঝিনাইদহ সদর';
+      const position = firestoreUser?.position || fullMember?.position || user.position || '';
+      const department = firestoreUser?.department || fullMember?.department || '';
+      const studentSession = firestoreUser?.studentSession || fullMember?.session || '২০২২-২৩';
+      const bloodGroup = firestoreUser?.bloodGroup || fullMember?.bloodGroup || 'B+';
+      const phone = firestoreUser?.phone || fullMember?.phone || '';
+      const email = firestoreUser?.email || fullMember?.email || user.email || '';
+      const hall = firestoreUser?.hall || fullMember?.hall || '';
+      const bio = firestoreUser?.bio || fullMember?.bio || '';
+
+      reset({
+        name,
+        upazila,
+        position,
+        department,
+        studentSession,
+        bloodGroup,
+        phone,
+        email,
+        hall,
+        bio,
+      });
+    })();
+    return () => { active = false; };
+  }, [reset, user, firestoreUser]);
 
   useEffect(() => {
     return () => {
@@ -187,8 +207,11 @@ export function DashboardProfile() {
       const nextUrl = url;
       setAvatar(nextUrl);
       window.localStorage.setItem(`avatar-cache:${user.uid}`, nextUrl);
+      if (user.email) {
+        window.localStorage.setItem(`avatar-cache:${user.email.toLowerCase()}`, nextUrl);
+      }
       try {
-        await updateOwnProfile(user.uid, { photoUrl: nextUrl });
+        await updateOwnProfile(user.uid, { photoUrl: nextUrl, email: user.email ?? undefined });
       } catch {
         // keep local preview even if DB update fails
       }

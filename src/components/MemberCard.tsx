@@ -9,8 +9,34 @@ interface MemberCardProps {
   onClick?: () => void;
 }
 
+function resolvePhoto(m: MemberProfile): string {
+  if (m.photo && !m.photo.includes('unsplash.com')) return m.photo;
+  try {
+    if (m.email) {
+      const emailCached = localStorage.getItem(`avatar-cache:${m.email.toLowerCase()}`);
+      if (emailCached && !emailCached.includes('unsplash.com')) return emailCached;
+    }
+    if (m.uid || m.id) {
+      const idCached = localStorage.getItem(`avatar-cache:${m.uid || m.id}`);
+      if (idCached && !idCached.includes('unsplash.com')) return idCached;
+    }
+    const demoRaw = localStorage.getItem('jhenaidah_demo_user');
+    if (demoRaw) {
+      const demo = JSON.parse(demoRaw);
+      const isMatch = (demo.email && m.email && demo.email.toLowerCase() === m.email.toLowerCase()) || demo.uid === m.uid || demo.uid === m.id;
+      if (isMatch && (demo.photoUrl || demo.photo) && !(demo.photoUrl || demo.photo).includes('unsplash.com')) {
+        return demo.photoUrl || demo.photo;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return m.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+}
+
 export function MemberCard({ member, to, onClick }: MemberCardProps) {
   const link = to ?? `/members/${member.id}`;
+  const displayPhoto = resolvePhoto(member);
   const content = (
     <div
       onClick={onClick}
@@ -19,7 +45,7 @@ export function MemberCard({ member, to, onClick }: MemberCardProps) {
       {/* Photo */}
       <div className="relative h-44 overflow-hidden">
         <img
-          src={member.photo}
+          src={displayPhoto}
           alt={member.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"

@@ -116,8 +116,8 @@ export function DashboardMemberEdit() {
               <select className="input mt-1.5" {...register('department')}>{DEPARTMENTS.map((d) => <option key={d} value={d}>{d}</option>)}</select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">সেশন</label>
-              <select className="input mt-1.5" {...register('session')}>{SESSIONS.map((s) => <option key={s} value={s}>{s}</option>)}</select>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">সেশন (Session)</label>
+              <input className="input mt-1.5" placeholder="যেমন: 2022-23 বা 1990-91" {...register('session')} />
             </div>
           </div>
 

@@ -6,10 +6,12 @@ import { MapPin, Users, Star, UserCheck, ArrowRight } from 'lucide-react';
 import { toBnNumber } from '@/utils/format';
 import { Link } from 'react-router-dom';
 import { listCommitteeMembers } from '@/services/committeeService';
-import type { CommitteeMemberRecord, UpazilaName } from '@/types';
+import { listApprovedMembers } from '@/services/memberService';
+import type { CommitteeMemberRecord, UpazilaName, MemberProfile } from '@/types';
 
 export function UpazilasPage() {
   const [upazilaCommittees, setUpazilaCommittees] = useState<Record<string, CommitteeMemberRecord[]>>({});
+  const [upazilaMemberCounts, setUpazilaMemberCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     (async () => {
@@ -19,6 +21,18 @@ export function UpazilasPage() {
         recordsMap[u.id] = list;
       }
       setUpazilaCommittees(recordsMap);
+
+      try {
+        const allMembers = await listApprovedMembers();
+        const counts: Record<string, number> = {};
+        for (const u of UPAZILAS) {
+          const matched = allMembers.filter((m) => m.upazila === u.name);
+          counts[u.id] = matched.length;
+        }
+        setUpazilaMemberCounts(counts);
+      } catch {
+        // ignore
+      }
     })();
   }, []);
 
@@ -36,6 +50,7 @@ export function UpazilasPage() {
           const list = upazilaCommittees[u.id] || [];
           const pres = list.find((c) => c.position === 'সভাপতি' || c.position.includes('সভাপতি'))?.name || u.president;
           const sec = list.find((c) => c.position === 'সাধারণ সম্পাদক' || c.position.includes('সম্পাদক'))?.name || u.secretary;
+          const realCount = upazilaMemberCounts[u.id] !== undefined ? upazilaMemberCounts[u.id] : u.memberCount;
 
           return (
             <StaggerItem key={u.id}>
@@ -44,8 +59,8 @@ export function UpazilasPage() {
                   <div className="grid h-12 w-12 place-items-center rounded-xl bg-bd-gradient text-white">
                     <MapPin className="h-6 w-6" />
                   </div>
-                  <span className="chip bg-bd-green-50 text-bd-green-700 dark:bg-bd-green-900/30 dark:text-bd-green-300">
-                    <Users className="h-3 w-3" /> {toBnNumber(u.memberCount)} জন
+                  <span className="chip bg-bd-green-50 text-bd-green-700 dark:bg-bd-green-900/30 dark:text-bd-green-300 font-semibold">
+                    <Users className="h-3 w-3" /> {toBnNumber(realCount)} জন
                   </span>
                 </div>
                 <h3 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white group-hover:text-bd-green-700 dark:group-hover:text-bd-green-300 transition flex items-center justify-between">

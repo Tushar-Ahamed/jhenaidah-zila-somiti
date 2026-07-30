@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { useState } from 'react';
 import { useAuth, AuthError } from '@/context/AuthContext';
 import type { UserRole, UpazilaName, MemberProfile } from '@/types';
-import { UPAZILA_OPTIONS, ROLE_LABELS, DEPARTMENTS, SESSIONS, BLOOD_GROUPS } from '@/types';
+import { UPAZILA_OPTIONS, ROLE_LABELS, DEPARTMENTS, SESSIONS, HALLS, BLOOD_GROUPS } from '@/types';
 
 interface FormValues {
   name: string;
@@ -34,17 +34,20 @@ export function RegisterPage() {
     defaultValues: {
       role: 'student',
       upazila: 'ঝিনাইদহ সদর',
-      department: 'কম্পিউটার সায়েন্স',
+      department: DEPARTMENTS[0],
       session: '২০২২-২৩',
-      hall: 'শহীদ জহুরুল হক হল',
+      hall: HALLS[0],
       bloodGroup: 'B+',
     },
   });
   const [loading, setLoading] = useState(false);
+  const [customSession, setCustomSession] = useState('');
   const password = watch('password');
+  const watchedSession = watch('session');
 
   const onSubmit = async (data: FormValues) => {
     setLoading(true);
+    const finalSession = data.session === 'custom' ? (customSession.trim() || 'অনুল্লেখিত') : data.session;
     try {
       await registerUser({
         name: data.name,
@@ -53,7 +56,7 @@ export function RegisterPage() {
         role: data.role,
         upazila: data.upazila,
         department: data.department,
-        session: data.session,
+        session: finalSession,
         phone: data.phone,
         hall: data.hall,
         bloodGroup: data.bloodGroup,
@@ -139,7 +142,18 @@ export function RegisterPage() {
               {SESSIONS.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
+              <option value="custom">অন্যান্য (সেশন নিজে লিখুন)</option>
             </select>
+            {watchedSession === 'custom' && (
+              <input
+                type="text"
+                className="input mt-2"
+                placeholder="যেমন: ১৯৯০-৯১ বা 1990-91"
+                value={customSession}
+                onChange={(e) => setCustomSession(e.target.value)}
+                required
+              />
+            )}
           </div>
         </div>
 
@@ -147,8 +161,12 @@ export function RegisterPage() {
           <div>
             <label className="text-sm font-medium text-gray-700 dark:text-gray-300">হল (Hall)</label>
             <div className="relative mt-1.5">
-              <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input className="input pl-10" placeholder="হলের নাম" {...register('hall')} />
+              <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 z-10 pointer-events-none" />
+              <select className="input pl-10" {...register('hall', { required: 'হল আবশ্যক' })}>
+                {HALLS.map((h) => (
+                  <option key={h} value={h}>{h}</option>
+                ))}
+              </select>
             </div>
           </div>
 
@@ -165,13 +183,23 @@ export function RegisterPage() {
           </div>
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">ইমেইল (Email)</label>
-          <div className="relative mt-1.5">
-            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-            <input type="email" className="input pl-10" placeholder="email@example.com" {...register('email', { required: 'ইমেইল আবশ্যক' })} />
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">ইমেইল (Email)</label>
+            <div className="relative mt-1.5">
+              <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input type="email" className="input pl-10" placeholder="email@example.com" {...register('email', { required: 'ইমেইল আবশ্যক' })} />
+            </div>
+            {errors.email && <p className="mt-1 text-xs text-bd-red-600">{errors.email.message}</p>}
           </div>
-          {errors.email && <p className="mt-1 text-xs text-bd-red-600">{errors.email.message}</p>}
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">ফোন (ঐচ্ছিক/গোপনীয়)</label>
+            <div className="relative mt-1.5">
+              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input type="tel" className="input pl-10" placeholder="01711000000 (ঐচ্ছিক)" {...register('phone')} />
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">

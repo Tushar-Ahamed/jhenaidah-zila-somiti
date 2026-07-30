@@ -113,7 +113,7 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
           createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
           updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now(),
         }));
-      dbMembers = [...dbMembers, ...profMembers];
+      dbMembers = [...profMembers, ...dbMembers];
     }
   } catch {
     // ignore
@@ -157,17 +157,46 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
     // ignore
   }
 
-  // Deduplicate members by Email or ID
+  // Deduplicate members by Email or ID, prioritizing custom non-unsplash photos
   const uniqueMap = new Map<string, MemberProfile>();
   for (const m of combined) {
     const key = (m.email ? m.email.toLowerCase() : m.id);
     if (!uniqueMap.has(key)) {
-      uniqueMap.set(key, m);
+      uniqueMap.set(key, { ...m });
     } else {
-      // prefer version with upazila or details if available
       const existing = uniqueMap.get(key)!;
-      if (!existing.upazila && m.upazila) {
-        uniqueMap.set(key, m);
+      const isExistingDefault = !existing.photo || existing.photo.includes('unsplash.com');
+      const isNewCustom = m.photo && !m.photo.includes('unsplash.com');
+
+      const bestPhoto = isNewCustom ? m.photo : (isExistingDefault ? m.photo || existing.photo : existing.photo);
+
+      uniqueMap.set(key, {
+        ...existing,
+        ...m,
+        photo: bestPhoto,
+        upazila: m.upazila || existing.upazila,
+      });
+    }
+  }
+
+  // Fallback: check avatar cache and demo user for custom profile photo
+  for (const [key, m] of uniqueMap.entries()) {
+    if (!m.photo || m.photo.includes('unsplash.com')) {
+      try {
+        const cached = localStorage.getItem(`avatar-cache:${m.uid || m.id}`);
+        if (cached && !cached.includes('unsplash.com')) {
+          uniqueMap.set(key, { ...m, photo: cached });
+          continue;
+        }
+        const demoRaw = localStorage.getItem('jhenaidah_demo_user');
+        if (demoRaw) {
+          const demoFs = JSON.parse(demoRaw);
+          if ((demoFs.uid === m.uid || demoFs.email?.toLowerCase() === m.email?.toLowerCase()) && demoFs.photoUrl) {
+            uniqueMap.set(key, { ...m, photo: demoFs.photoUrl });
+          }
+        }
+      } catch {
+        // ignore
       }
     }
   }

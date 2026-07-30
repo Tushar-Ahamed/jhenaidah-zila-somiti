@@ -464,7 +464,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new AuthError('NOT_ALLOWED', 'এই ভূমিকার জন্য স্ব-নিবন্ধন অনুমোদিত নয়।');
     }
 
-    let uid = `user-${Date.now()}`;
+    let uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
     const autoApproved = input.role === 'student' || input.role === 'alumni';
 
     try {
@@ -483,8 +485,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data?.user?.id) {
         uid = data.user.id;
       }
-    } catch {
-      // fallback
+    } catch (e) {
+      console.warn('Supabase signUp notice:', e);
     }
 
     const newProfile: FirestoreUser = {

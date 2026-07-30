@@ -134,13 +134,58 @@ export async function updateOwnProfile(uid: string, patch: UpdateProfileInput): 
     // fallback
   }
 
+  // Also sync with Supabase 'members' table
+  try {
+    const memberPayload: Record<string, unknown> = {
+      ...(patch.name && { name: patch.name }),
+      ...(patch.upazila !== undefined && { upazila: patch.upazila }),
+      ...(patch.photoUrl !== undefined && { photo: patch.photoUrl }),
+      ...(patch.department !== undefined && { department: patch.department }),
+      ...(patch.studentSession !== undefined && { session: patch.studentSession }),
+      ...(patch.bloodGroup !== undefined && { blood_group: patch.bloodGroup }),
+      ...(patch.phone !== undefined && { phone: patch.phone }),
+      ...(patch.email !== undefined && { email: patch.email }),
+      ...(patch.bio !== undefined && { bio: patch.bio }),
+      ...(patch.hall !== undefined && { hall: patch.hall }),
+      updated_at: new Date().toISOString(),
+    };
+    await supabase
+      .from('members')
+      .update(memberPayload)
+      .or(`id.eq.${uid},uid.eq.${uid}`);
+  } catch {
+    // ignore
+  }
+
+  // Save photoUrl to localStorage caches
+  if (patch.photoUrl) {
+    try {
+      localStorage.setItem(`avatar-cache:${uid}`, patch.photoUrl);
+      if (patch.email) {
+        localStorage.setItem(`avatar-cache:${patch.email.toLowerCase()}`, patch.photoUrl);
+      }
+      const demoRaw = localStorage.getItem('jhenaidah_demo_user');
+      if (demoRaw) {
+        const demo = JSON.parse(demoRaw);
+        if (demo.uid === uid || (patch.email && demo.email?.toLowerCase() === patch.email.toLowerCase())) {
+          demo.photoUrl = patch.photoUrl;
+          demo.photo = patch.photoUrl;
+          localStorage.setItem('jhenaidah_demo_user', JSON.stringify(demo));
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // Also sync with member storage
   try {
     const raw = localStorage.getItem('jhenaidah_approved_members_v1');
     if (raw) {
       const list = JSON.parse(raw);
       const updated = list.map((m: any) => {
-        if (m.id === uid || m.uid === uid || (patch.email && m.email === patch.email)) {
+        const isMatch = m.id === uid || m.uid === uid || (patch.email && m.email?.toLowerCase() === patch.email.toLowerCase());
+        if (isMatch) {
           return {
             ...m,
             ...(patch.name && { name: patch.name }),
@@ -158,6 +203,38 @@ export async function updateOwnProfile(uid: string, patch: UpdateProfileInput): 
         return m;
       });
       localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify(updated));
+    }
+  } catch {
+    // ignore
+  }
+
+  // Also sync with registered users storage
+  try {
+    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+    if (regRaw) {
+      const list = JSON.parse(regRaw);
+      const updated = list.map((r: any) => {
+        const isMatch = r.profile?.uid === uid || (patch.email && r.email?.toLowerCase() === patch.email.toLowerCase());
+        if (isMatch && r.profile) {
+          return {
+            ...r,
+            profile: {
+              ...r.profile,
+              ...(patch.name && { name: patch.name }),
+              ...(patch.photoUrl !== undefined && { photoUrl: patch.photoUrl }),
+              ...(patch.upazila !== undefined && { upazila: patch.upazila }),
+              ...(patch.department !== undefined && { department: patch.department }),
+              ...(patch.studentSession !== undefined && { studentSession: patch.studentSession }),
+              ...(patch.bloodGroup !== undefined && { bloodGroup: patch.bloodGroup }),
+              ...(patch.phone !== undefined && { phone: patch.phone }),
+              ...(patch.bio !== undefined && { bio: patch.bio }),
+              ...(patch.hall !== undefined && { hall: patch.hall }),
+            },
+          };
+        }
+        return r;
+      });
+      localStorage.setItem('jhenaidah_registered_users_v1', JSON.stringify(updated));
     }
   } catch {
     // ignore
