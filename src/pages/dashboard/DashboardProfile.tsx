@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { updateOwnProfile, writeAuditLog } from '@/services/userService';
 import { getMember } from '@/services/memberService';
 import { deleteProfileImageByUrl, fileToDataURL, optimizeImageForUpload, uploadAvatar } from '@/services/uploadService';
+import { syncMemberToCloud } from '@/services/cloudSyncService';
 import { ROLE_LABELS, STATUS_LABELS, UPAZILA_OPTIONS, type UpazilaName } from '@/types';
 import { Activity, Award, BookOpen, Briefcase, Calendar, Camera, Clock3, Globe, ImagePlus, Loader2, Mail, MapPin, Phone, Save, Shield, Sparkles, User, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -212,6 +213,23 @@ export function DashboardProfile() {
       }
       try {
         await updateOwnProfile(user.uid, { photoUrl: nextUrl, email: user.email ?? undefined });
+        await syncMemberToCloud({
+          id: user.uid,
+          uid: user.uid,
+          name: user.displayName || 'সদস্য',
+          photo: nextUrl,
+          department: user.department || 'অনুল্লেখিত',
+          session: user.studentSession || '২০২২-২৩',
+          hall: user.hall || 'অনুল্লেখিত',
+          upazila: user.upazila || 'ঝিনাইদহ সদর',
+          phone: user.phone || '',
+          email: user.email || '',
+          bloodGroup: user.bloodGroup || 'B+',
+          bio: user.bio || `${user.displayName} - ${user.position || 'সদস্য'}`,
+          status: 'approved',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
       } catch {
         // keep local preview even if DB update fails
       }
@@ -238,6 +256,23 @@ export function DashboardProfile() {
         const fallbackUrl = await fileToDataURL(selectedFile);
         setAvatar(fallbackUrl);
         window.localStorage.setItem(`avatar-cache:${user.uid}`, fallbackUrl);
+        await syncMemberToCloud({
+          id: user.uid,
+          uid: user.uid,
+          name: user.displayName || 'সদস্য',
+          photo: fallbackUrl,
+          department: user.department || 'অনুল্লেখিত',
+          session: user.studentSession || '২০২২-২৩',
+          hall: user.hall || 'অনুল্লেখিত',
+          upazila: user.upazila || 'ঝিনাইদহ সদর',
+          phone: user.phone || '',
+          email: user.email || '',
+          bloodGroup: user.bloodGroup || 'B+',
+          bio: user.bio || `${user.displayName} - ${user.position || 'সদস্য'}`,
+          status: 'approved',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
         toast.success('ছবির প্রিভিউ আপডেট করা হয়েছে');
       } catch {
         toast.error('ছবি প্রসেস করতে সমস্যা হয়েছে');

@@ -5,6 +5,52 @@ const BACKUP_SYNC_URL = 'https://jsonblob.com/api/jsonBlob/019fb52d-2884-7fe9-8a
 
 const ENDPOINTS = [PRIMARY_SYNC_URL, BACKUP_SYNC_URL];
 
+export function deduplicateMemberList(list: MemberProfile[]): MemberProfile[] {
+  const result: MemberProfile[] = [];
+
+  for (const m of list) {
+    if (!m || !m.name || m.name.trim().length === 0) continue;
+
+    const normEmail = (m.email || '').trim().toLowerCase();
+    const normName = m.name.trim().toLowerCase().replace(/\s+/g, '');
+
+    const existingIndex = result.findIndex((item) => {
+      const itemEmail = (item.email || '').trim().toLowerCase();
+      const itemName = item.name.trim().toLowerCase().replace(/\s+/g, '');
+
+      if (normEmail && itemEmail && normEmail === itemEmail) return true;
+      if (normName && itemName && normName === itemName) return true;
+      if (m.id && item.id && (m.id === item.id || m.id === item.uid || m.uid === item.id)) return true;
+      return false;
+    });
+
+    if (existingIndex === -1) {
+      result.push({ ...m, status: 'approved' });
+    } else {
+      const existing = result[existingIndex];
+      const isExistingDefault = !existing.photo || existing.photo.includes('unsplash.com') || existing.photo.startsWith('blob:');
+      const isNewCustom = m.photo && !m.photo.includes('unsplash.com') && !m.photo.startsWith('blob:');
+
+      const bestPhoto = isNewCustom ? m.photo : (isExistingDefault ? m.photo || existing.photo : existing.photo);
+
+      result[existingIndex] = {
+        ...existing,
+        ...m,
+        status: 'approved',
+        email: m.email || existing.email,
+        phone: m.phone || existing.phone,
+        department: m.department && m.department !== 'অনুল্লেখিত' ? m.department : existing.department,
+        session: m.session && m.session !== '২০২২-২৩' ? m.session : existing.session,
+        hall: m.hall && m.hall !== 'অনুল্লেখিত' ? m.hall : existing.hall,
+        upazila: m.upazila || existing.upazila,
+        photo: bestPhoto,
+      };
+    }
+  }
+
+  return result;
+}
+
 export async function fetchCloudMembers(): Promise<MemberProfile[]> {
   for (const url of ENDPOINTS) {
     try {
@@ -16,7 +62,8 @@ export async function fetchCloudMembers(): Promise<MemberProfile[]> {
       if (res.ok) {
         const data = await res.json();
         if (data?.members && Array.isArray(data.members)) {
-          return (data.members as MemberProfile[]).filter((m) => m && m.name && m.id);
+          const raw = (data.members as MemberProfile[]).filter((m) => m && m.name && m.id);
+          return deduplicateMemberList(raw);
         }
       }
     } catch {
@@ -27,12 +74,13 @@ export async function fetchCloudMembers(): Promise<MemberProfile[]> {
 }
 
 export async function saveCloudMembers(members: MemberProfile[]): Promise<void> {
+  const clean = deduplicateMemberList(members);
   for (const url of ENDPOINTS) {
     try {
       await fetch(url, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ members }),
+        body: JSON.stringify({ members: clean }),
       });
     } catch {
       // best-effort
@@ -44,22 +92,8 @@ export async function syncMemberToCloud(member: MemberProfile): Promise<void> {
   if (!member || !member.name || (!member.email && !member.id)) return;
   try {
     const existing = await fetchCloudMembers();
-    const map = new Map<string, MemberProfile>();
-    for (const m of existing) {
-      if (m && m.name) {
-        const key = m.email ? m.email.toLowerCase() : m.id;
-        map.set(key, m);
-      }
-    }
-    const myKey = member.email ? member.email.toLowerCase() : member.id;
-    const previous = map.get(myKey);
-    map.set(myKey, {
-      ...previous,
-      ...member,
-      status: 'approved',
-      photo: member.photo && !member.photo.startsWith('blob:') ? member.photo : previous?.photo || '',
-    });
-    await saveCloudMembers(Array.from(map.values()));
+    const updatedList = deduplicateMemberList([...existing, member]);
+    await saveCloudMembers(updatedList);
   } catch {
     // best-effort
   }
@@ -68,14 +102,6 @@ export async function syncMemberToCloud(member: MemberProfile): Promise<void> {
 export async function syncAllLocalMembersToCloud(): Promise<void> {
   try {
     const existing = await fetchCloudMembers();
-    const map = new Map<string, MemberProfile>();
-    for (const m of existing) {
-      if (m && m.name) {
-        const key = m.email ? m.email.toLowerCase() : m.id;
-        map.set(key, { ...m, status: 'approved' });
-      }
-    }
-
     const localProfiles: MemberProfile[] = [];
 
     const demoRaw = localStorage.getItem('jhenaidah_demo_user');
@@ -136,23 +162,9 @@ export async function syncAllLocalMembersToCloud(): Promise<void> {
       }
     }
 
-    let hasNew = false;
-    for (const p of localProfiles) {
-      const key = p.email ? p.email.toLowerCase() : p.id;
-      const prev = map.get(key);
-      if (!prev || prev.name !== p.name || (p.photo && !p.photo.startsWith('blob:') && p.photo !== prev.photo)) {
-        map.set(key, {
-          ...prev,
-          ...p,
-          status: 'approved',
-          photo: p.photo && !p.photo.startsWith('blob:') ? p.photo : prev?.photo || '',
-        });
-        hasNew = true;
-      }
-    }
-
-    if (hasNew || map.size > existing.length) {
-      await saveCloudMembers(Array.from(map.values()));
+    const merged = deduplicateMemberList([...existing, ...localProfiles]);
+    if (merged.length >= existing.length) {
+      await saveCloudMembers(merged);
     }
   } catch {
     // best-effort

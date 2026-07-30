@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { MemberProfile, MemberStatus, UpazilaName } from '@/types';
 import { MEMBERS } from '@/data/membersData';
-import { fetchCloudMembers, syncMemberToCloud, syncAllLocalMembersToCloud } from '@/services/cloudSyncService';
+import { fetchCloudMembers, syncMemberToCloud, syncAllLocalMembersToCloud, deduplicateMemberList } from '@/services/cloudSyncService';
 
 const COL = 'members';
 
@@ -182,51 +182,30 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
     // ignore
   }
 
-  // Deduplicate members by Email or ID, prioritizing custom non-unsplash photos
-  const uniqueMap = new Map<string, MemberProfile>();
-  for (const m of combined) {
-    const key = (m.email ? m.email.toLowerCase() : m.id);
-    if (!uniqueMap.has(key)) {
-      uniqueMap.set(key, { ...m });
-    } else {
-      const existing = uniqueMap.get(key)!;
-      const isExistingDefault = !existing.photo || existing.photo.includes('unsplash.com') || existing.photo.startsWith('blob:');
-      const isNewCustom = m.photo && !m.photo.includes('unsplash.com') && !m.photo.startsWith('blob:');
-
-      const bestPhoto = isNewCustom ? m.photo : (isExistingDefault ? m.photo || existing.photo : existing.photo);
-
-      uniqueMap.set(key, {
-        ...existing,
-        ...m,
-        photo: sanitizePhotoUrl(bestPhoto),
-        upazila: m.upazila || existing.upazila,
-      });
-    }
-  }
+  let finalMembers = deduplicateMemberList(combined);
 
   // Fallback: check avatar cache and demo user for custom profile photo
-  for (const [key, m] of uniqueMap.entries()) {
+  finalMembers = finalMembers.map((m) => {
     if (!m.photo || m.photo.includes('unsplash.com') || m.photo.startsWith('blob:')) {
       try {
         const cached = localStorage.getItem(`avatar-cache:${m.uid || m.id}`);
         if (cached && !cached.includes('unsplash.com') && !cached.startsWith('blob:')) {
-          uniqueMap.set(key, { ...m, photo: cached });
-          continue;
+          return { ...m, photo: cached };
         }
         const demoRaw = localStorage.getItem('jhenaidah_demo_user');
         if (demoRaw) {
           const demoFs = JSON.parse(demoRaw);
           if ((demoFs.uid === m.uid || demoFs.email?.toLowerCase() === m.email?.toLowerCase()) && demoFs.photoUrl && !demoFs.photoUrl.startsWith('blob:')) {
-            uniqueMap.set(key, { ...m, photo: demoFs.photoUrl });
+            return { ...m, photo: demoFs.photoUrl };
           }
         }
       } catch {
         // ignore
       }
     }
-  }
+    return m;
+  });
 
-  let finalMembers = Array.from(uniqueMap.values());
   try {
     localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify(finalMembers));
   } catch {
