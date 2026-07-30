@@ -1,36 +1,42 @@
 import type { MemberProfile, UpazilaName } from '@/types';
 
-const SHARED_CLOUD_DB_ID = 'ff8081819f7e10ae019fb51ccbe550b1';
-const SYNC_URL = `https://api.restful-api.dev/objects/${SHARED_CLOUD_DB_ID}`;
+const PRIMARY_SYNC_URL = 'https://jsonblob.com/api/jsonBlob/019fb52d-9d88-74d9-8598-27f8a1525e3c';
+const BACKUP_SYNC_URL = 'https://jsonblob.com/api/jsonBlob/019fb52d-2884-7fe9-8ad8-61878a824a47';
+
+const ENDPOINTS = [PRIMARY_SYNC_URL, BACKUP_SYNC_URL];
 
 export async function fetchCloudMembers(): Promise<MemberProfile[]> {
-  try {
-    const res = await fetch(SYNC_URL, { cache: 'no-store' });
-    if (!res.ok) return [];
-    const data = await res.json();
-    if (data?.data?.members && Array.isArray(data.data.members)) {
-      return (data.data.members as MemberProfile[]).filter(
-        (m) => m && m.name && !m.id?.startsWith('u1') && !m.id?.startsWith('u2') && !m.id?.startsWith('u3')
-      );
+  for (const url of ENDPOINTS) {
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.members && Array.isArray(data.members)) {
+          return (data.members as MemberProfile[]).filter((m) => m && m.name && m.id);
+        }
+      }
+    } catch {
+      // try next
     }
-  } catch {
-    // best-effort
   }
   return [];
 }
 
 export async function saveCloudMembers(members: MemberProfile[]): Promise<void> {
-  try {
-    await fetch(SYNC_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'jhenaidah_members_global_db_v1',
-        data: { members },
-      }),
-    });
-  } catch {
-    // best-effort
+  for (const url of ENDPOINTS) {
+    try {
+      await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({ members }),
+      });
+    } catch {
+      // best-effort
+    }
   }
 }
 
