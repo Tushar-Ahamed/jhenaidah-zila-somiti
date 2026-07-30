@@ -213,19 +213,20 @@ export function DashboardProfile() {
       }
       try {
         await updateOwnProfile(user.uid, { photoUrl: nextUrl, email: user.email ?? undefined });
+        const formVals = getValues();
         await syncMemberToCloud({
           id: user.uid,
           uid: user.uid,
-          name: user.displayName || 'সদস্য',
+          name: formVals.name || user.displayName || 'সদস্য',
           photo: nextUrl,
-          department: user.department || 'অনুল্লেখিত',
-          session: user.studentSession || '২০২২-২৩',
-          hall: user.hall || 'অনুল্লেখিত',
-          upazila: user.upazila || 'ঝিনাইদহ সদর',
-          phone: user.phone || '',
-          email: user.email || '',
-          bloodGroup: user.bloodGroup || 'B+',
-          bio: user.bio || `${user.displayName} - ${user.position || 'সদস্য'}`,
+          department: formVals.department || user.department || 'অনুল্লেখিত',
+          session: formVals.studentSession || user.studentSession || '২০২২-২৩',
+          hall: formVals.hall || user.hall || 'অনুল্লেখিত',
+          upazila: formVals.upazila || user.upazila || 'ঝিনাইদহ সদর',
+          phone: formVals.phone || user.phone || '',
+          email: user.email || formVals.email || '',
+          bloodGroup: (formVals.bloodGroup as any) || user.bloodGroup || 'B+',
+          bio: formVals.bio || user.bio || `${formVals.name || user.displayName} - ${formVals.position || 'সদস্য'}`,
           status: 'approved',
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -256,19 +257,20 @@ export function DashboardProfile() {
         const fallbackUrl = await fileToDataURL(selectedFile);
         setAvatar(fallbackUrl);
         window.localStorage.setItem(`avatar-cache:${user.uid}`, fallbackUrl);
+        const formVals = getValues();
         await syncMemberToCloud({
           id: user.uid,
           uid: user.uid,
-          name: user.displayName || 'সদস্য',
+          name: formVals.name || user.displayName || 'সদস্য',
           photo: fallbackUrl,
-          department: user.department || 'অনুল্লেখিত',
-          session: user.studentSession || '২০২২-২৩',
-          hall: user.hall || 'অনুল্লেখিত',
-          upazila: user.upazila || 'ঝিনাইদহ সদর',
-          phone: user.phone || '',
-          email: user.email || '',
-          bloodGroup: user.bloodGroup || 'B+',
-          bio: user.bio || `${user.displayName} - ${user.position || 'সদস্য'}`,
+          department: formVals.department || user.department || 'অনুল্লেখিত',
+          session: formVals.studentSession || user.studentSession || '২০২২-২৩',
+          hall: formVals.hall || user.hall || 'অনুল্লেখিত',
+          upazila: formVals.upazila || user.upazila || 'ঝিনাইদহ সদর',
+          phone: formVals.phone || user.phone || '',
+          email: user.email || formVals.email || '',
+          bloodGroup: (formVals.bloodGroup as any) || user.bloodGroup || 'B+',
+          bio: formVals.bio || user.bio || `${formVals.name || user.displayName} - ${formVals.position || 'সদস্য'}`,
           status: 'approved',
           createdAt: Date.now(),
           updatedAt: Date.now(),
