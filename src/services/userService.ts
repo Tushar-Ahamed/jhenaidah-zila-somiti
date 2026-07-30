@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { syncMemberToCloud } from '@/services/cloudSyncService';
 import type {
   FirestoreUser,
   UserRole,
@@ -178,7 +179,7 @@ export async function updateOwnProfile(uid: string, patch: UpdateProfileInput): 
     }
   }
 
-  // Also sync with member storage
+  // Also sync with member storage and cloud sync
   try {
     const raw = localStorage.getItem('jhenaidah_approved_members_v1');
     if (raw) {
@@ -186,7 +187,7 @@ export async function updateOwnProfile(uid: string, patch: UpdateProfileInput): 
       const updated = list.map((m: any) => {
         const isMatch = m.id === uid || m.uid === uid || (patch.email && m.email?.toLowerCase() === patch.email.toLowerCase());
         if (isMatch) {
-          return {
+          const synced = {
             ...m,
             ...(patch.name && { name: patch.name }),
             ...(patch.upazila !== undefined && { upazila: patch.upazila }),
@@ -199,6 +200,8 @@ export async function updateOwnProfile(uid: string, patch: UpdateProfileInput): 
             ...(patch.bio !== undefined && { bio: patch.bio }),
             ...(patch.hall !== undefined && { hall: patch.hall }),
           };
+          try { syncMemberToCloud(synced); } catch { /* ignore */ }
+          return synced;
         }
         return m;
       });

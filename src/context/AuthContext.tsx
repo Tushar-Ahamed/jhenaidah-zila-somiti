@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { normalizeUserRole, type AppUser, type FirestoreUser, type UserRole, type UpazilaName } from '@/types';
+import { syncMemberToCloud } from '@/services/cloudSyncService';
 
 export type AuthErrorCode =
   | 'EMAIL_NOT_VERIFIED'
@@ -578,7 +579,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           createdAt: Date.now(),
           updatedAt: Date.now(),
         };
+
         localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify([newMember, ...memList.filter((m: any) => m.email.toLowerCase() !== input.email.toLowerCase())]));
+        try {
+          syncMemberToCloud(newMember);
+        } catch {
+          // ignore
+        }
       }
     } catch {
       // ignore

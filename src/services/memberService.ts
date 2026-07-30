@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import type { MemberProfile, MemberStatus, UpazilaName } from '@/types';
 import { MEMBERS } from '@/data/membersData';
+import { fetchCloudMembers, syncMemberToCloud } from '@/services/cloudSyncService';
 
 const COL = 'members';
 
@@ -126,7 +127,17 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
     // ignore
   }
 
-  // 3. Merge local storage persisted members (jhenaidah_approved_members_v1 & jhenaidah_registered_users_v1)
+  // 3. Fetch from global Cloud Sync Database (works across all devices & phones)
+  try {
+    const cloudMembers = await fetchCloudMembers();
+    if (cloudMembers.length > 0) {
+      combined = [...cloudMembers.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) })), ...combined];
+    }
+  } catch {
+    // ignore
+  }
+
+  // 4. Merge local storage persisted members (jhenaidah_approved_members_v1 & jhenaidah_registered_users_v1)
   let combined = [...dbMembers];
 
   try {
