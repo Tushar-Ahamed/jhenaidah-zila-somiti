@@ -134,13 +134,13 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
     // ignore
   }
 
-  let combined: MemberProfile[] = [];
+  let combined: MemberProfile[] = [...MEMBERS];
 
   // 4. Fetch from global Cloud Sync Database (works across all devices & phones)
   try {
     const cloudMembers = await fetchCloudMembers();
     if (cloudMembers.length > 0) {
-      combined = [...cloudMembers.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) }))];
+      combined = [...combined, ...cloudMembers.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) }))];
     }
   } catch {
     // ignore

@@ -1,5 +1,55 @@
 import type { MemberProfile } from '@/types';
 
-// Real member profiles will be dynamically loaded from database & registration.
-export const MEMBERS: MemberProfile[] = [];
-
+export const MEMBERS: MemberProfile[] = [
+  {
+    id: '1b3bfad2-d305-4974-b351-aa8858ac7a5d',
+    uid: '1b3bfad2-d305-4974-b351-aa8858ac7a5d',
+    name: 'Tushar Ahamed',
+    email: 'tusharahamed968@gmail.com',
+    department: 'কম্পিউটার সায়েন্স অ্যান্ড ইঞ্জিনিয়ারিং (CSE)',
+    session: '২০২২-২৩',
+    hall: 'Bijoy-24',
+    upazila: 'মহেশপুর',
+    bloodGroup: 'O+',
+    phone: '01700000000',
+    photo: '/tushar_suit.jpg',
+    bio: 'Tushar Ahamed - শিক্ষার্থী',
+    status: 'approved',
+    createdAt: 1785449778079,
+    updatedAt: 1785449778079,
+  },
+  {
+    id: 'm-riyad',
+    uid: 'm-riyad',
+    name: 'Riyad',
+    email: 'riyad@gmail.com',
+    department: 'গণিত',
+    session: '২০২২-২৩',
+    hall: 'শের-ই-বাংলা ফজলুল হক হল',
+    upazila: 'মহেশপুর',
+    bloodGroup: 'B+',
+    phone: '01581685768',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    bio: 'Riyad - শিক্ষার্থী',
+    status: 'approved',
+    createdAt: 1785449778079,
+    updatedAt: 1785449778079,
+  },
+  {
+    id: 'm-mahin',
+    uid: 'm-mahin',
+    name: 'MD Arafat Zaman Mahin',
+    email: 'mahin@gmail.com',
+    department: 'পদার্থবিজ্ঞান',
+    session: '২০২৫-২৬',
+    hall: 'শহীদ হাবিবুর রহমান হল',
+    upazila: 'ঝিনাইদহ সদর',
+    bloodGroup: 'B+',
+    phone: '01700000000',
+    photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+    bio: 'MD Arafat Zaman Mahin - শিক্ষার্থী',
+    status: 'approved',
+    createdAt: 1785451108204,
+    updatedAt: 1785451108204,
+  },
+];
