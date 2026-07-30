@@ -6,12 +6,16 @@ import { Badge } from '@/components/ui/Badge';
 interface MemberCardProps {
   member: MemberProfile;
   to?: string;
+  onClick?: () => void;
 }
 
-export function MemberCard({ member, to }: MemberCardProps) {
+export function MemberCard({ member, to, onClick }: MemberCardProps) {
   const link = to ?? `/members/${member.id}`;
-  return (
-    <Link to={link} className="card overflow-hidden group h-full flex flex-col hover:shadow-glass transition-all">
+  const content = (
+    <div
+      onClick={onClick}
+      className="card overflow-hidden group h-full flex flex-col hover:shadow-glass cursor-pointer transition-all"
+    >
       {/* Photo */}
       <div className="relative h-44 overflow-hidden">
         <img
@@ -97,8 +101,11 @@ export function MemberCard({ member, to }: MemberCardProps) {
           )}
         </div>
       </div>
-    </Link>
+    </div>
   );
+
+  if (onClick) return content;
+  return <Link to={link}>{content}</Link>;
 }
 
 export function MemberCardSkeleton() {

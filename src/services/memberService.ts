@@ -29,12 +29,49 @@ function mapRow(r: Record<string, unknown>): MemberProfile {
 export async function getMember(id: string): Promise<MemberProfile | null> {
   try {
     const { data, error } = await supabase.from(COL).select('*').eq('id', id).maybeSingle();
-    if (error) throw error;
-    if (!data) return MEMBERS.find((m) => m.id === id) ?? null;
-    return mapRow(data);
+    if (!error && data) return mapRow(data);
   } catch {
-    return MEMBERS.find((m) => m.id === id) ?? null;
+    // fallback
   }
+
+  // Check local storage members
+  try {
+    const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
+    if (memRaw) {
+      const localApproved: MemberProfile[] = JSON.parse(memRaw);
+      const matched = localApproved.find((m) => m.id === id || m.uid === id);
+      if (matched) return matched;
+    }
+    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+    if (regRaw) {
+      const regList = JSON.parse(regRaw);
+      const matchedReg = regList.find((r: any) => r.profile?.uid === id || `reg-${r.email}` === id);
+      if (matchedReg) {
+        const p = matchedReg.profile;
+        return {
+          id: p.uid || `reg-${matchedReg.email}`,
+          uid: p.uid,
+          name: p.name,
+          photo: p.photoUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+          department: p.department || 'অনুল্লেখিত',
+          session: p.studentSession || '২০২২-২৩',
+          hall: p.hall || 'অনুল্লেখিত',
+          upazila: (p.upazila || 'ঝিনাইদহ সদর') as UpazilaName,
+          phone: p.phone || '',
+          email: matchedReg.email,
+          bloodGroup: p.bloodGroup || 'B+',
+          bio: p.bio || `${p.name} - ${p.position || 'সদস্য'}`,
+          status: 'approved',
+          createdAt: p.createdAt || Date.now(),
+          updatedAt: p.updatedAt || Date.now(),
+        };
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return null;
 }
 
 export async function listMembers(status?: MemberStatus): Promise<MemberProfile[]> {
@@ -82,10 +119,9 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
     // ignore
   }
 
-  // 3. Fallback static MEMBERS data
-  let combined = [...dbMembers, ...MEMBERS];
+  // 3. Merge local storage persisted members (jhenaidah_approved_members_v1 & jhenaidah_registered_users_v1)
+  let combined = [...dbMembers];
 
-  // 4. Merge local storage persisted members (jhenaidah_approved_members_v1 & jhenaidah_registered_users_v1)
   try {
     const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
     if (memRaw) {
@@ -97,7 +133,7 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
     if (regRaw) {
       const regList = JSON.parse(regRaw);
       const localRegistered: MemberProfile[] = regList
-        .filter((r: any) => r.profile && r.profile.upazila)
+        .filter((r: any) => r.profile)
         .map((r: any) => ({
           id: r.profile.uid || `reg-${r.email}`,
           uid: r.profile.uid,
@@ -106,11 +142,11 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
           department: r.profile.department || 'অনুল্লেখিত',
           session: r.profile.studentSession || '২০২২-২৩',
           hall: r.profile.hall || 'অনুল্লেখিত',
-          upazila: r.profile.upazila as UpazilaName,
+          upazila: (r.profile.upazila || 'ঝিনাইদহ সদর') as UpazilaName,
           phone: r.profile.phone || '',
           email: r.email,
           bloodGroup: r.profile.bloodGroup || 'B+',
-          bio: r.profile.bio || `${r.profile.name} - ${r.profile.role}`,
+          bio: r.profile.bio || `${r.profile.name} - ${r.profile.position || 'সদস্য'}`,
           status: r.profile.status === 'pending' ? 'pending' : 'approved',
           createdAt: r.profile.createdAt || Date.now(),
           updatedAt: r.profile.updatedAt || Date.now(),

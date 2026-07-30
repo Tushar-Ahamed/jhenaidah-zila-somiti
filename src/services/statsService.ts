@@ -9,8 +9,8 @@ export interface DynamicStat {
 }
 
 export async function fetchDynamicStats(): Promise<DynamicStat[]> {
-  let memberCount = 342;
-  let eventsCount = 48;
+  let memberCount = 0;
+  let eventsCount = 0;
   const upazilaCount = 6;
   const yearsPassed = new Date().getFullYear() - ORG_INFO.established;
 
@@ -20,22 +20,21 @@ export async function fetchDynamicStats(): Promise<DynamicStat[]> {
       listEvents(),
     ]);
 
-    if (membersList && membersList.length > 0) {
-      // If live member count is higher than default, use live count, else add to base
-      memberCount = Math.max(membersList.length, 342 + (membersList.length - 8));
+    if (membersList && Array.isArray(membersList)) {
+      memberCount = membersList.length;
     }
 
-    if (eventsList && eventsList.length > 0) {
-      eventsCount = Math.max(eventsList.length, 48);
+    if (eventsList && Array.isArray(eventsList)) {
+      eventsCount = eventsList.length;
     }
   } catch {
     // fallback
   }
 
   return [
-    { label: 'সদস্য সংখ্যা', value: memberCount, suffix: '+' },
+    { label: 'সদস্য সংখ্যা', value: memberCount, suffix: '' },
     { label: 'উপজেলা শাখা', value: upazilaCount, suffix: '' },
-    { label: 'আয়োজিত অনুষ্ঠান', value: eventsCount, suffix: '+' },
+    { label: 'আয়োজিত অনুষ্ঠান', value: eventsCount, suffix: '' },
     { label: 'বছর অতিবাহিত', value: yearsPassed, suffix: '' },
   ];
 }

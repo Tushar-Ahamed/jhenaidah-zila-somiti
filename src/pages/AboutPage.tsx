@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { SEO } from '@/components/SEO';
 import { FadeIn, StaggerGroup, StaggerItem } from '@/components/ui/FadeIn';
 import { SectionHeader } from '@/components/ui/SectionHeader';
-import { ORG_INFO, STATS } from '@/data/sampleData';
+import { ORG_INFO, STATS as DEFAULT_STATS } from '@/data/sampleData';
+import { fetchDynamicStats, type DynamicStat } from '@/services/statsService';
 import { Target, Eye, Users, Award, Heart, BookOpen } from 'lucide-react';
 import { toBnNumber } from '@/utils/format';
 
@@ -13,6 +15,14 @@ const values = [
 ];
 
 export function AboutPage() {
+  const [stats, setStats] = useState<DynamicStat[]>(DEFAULT_STATS);
+
+  useEffect(() => {
+    fetchDynamicStats().then((data) => {
+      if (data && data.length > 0) setStats(data);
+    });
+  }, []);
+
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
       <SEO title="আমাদের সম্পর্কে" description="ঝিনাইদহ জেলা সমিতির পরিচিতি, লক্ষ্য, স্বপ্ন ও মূল্যবোধ।" />
@@ -28,7 +38,7 @@ export function AboutPage() {
 
       {/* Stats */}
       <div className="mt-10 grid grid-cols-2 lg:grid-cols-4 gap-5">
-        {STATS.map((s) => (
+        {stats.map((s) => (
           <div key={s.label} className="card p-6 text-center">
             <p className="text-3xl font-bold text-bd-green-600">{toBnNumber(s.value)}{s.suffix}</p>
             <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">{s.label}</p>

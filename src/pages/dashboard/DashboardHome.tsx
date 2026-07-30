@@ -59,7 +59,7 @@ export function DashboardHome() {
   const isSuperAdmin = isDistrictAdmin(role) || role === 'district_admin';
 
   // Live Stats State
-  const [allMembers, setAllMembers] = useState<MemberProfile[]>(MEMBERS);
+  const [allMembers, setAllMembers] = useState<MemberProfile[]>([]);
   const [eventsCount, setEventsCount] = useState(EVENTS.length);
   const [noticesCount, setNoticesCount] = useState(NOTICES.length);
   const [albumsCount, setAlbumsCount] = useState(12);

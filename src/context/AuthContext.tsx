@@ -27,6 +27,11 @@ interface RegisterInput {
   password: string;
   role: Extract<UserRole, 'student' | 'teacher' | 'alumni'>;
   upazila: UpazilaName;
+  department?: string;
+  session?: string;
+  phone?: string;
+  hall?: string;
+  bloodGroup?: MemberProfile['bloodGroup'];
 }
 
 interface LoginInput {
@@ -495,6 +500,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       createdAt: Date.now(),
       updatedAt: Date.now(),
       approvedBy: autoApproved ? uid : null,
+      department: input.department ?? null,
+      studentSession: input.session ?? null,
+      phone: input.phone ?? null,
+      hall: input.hall ?? null,
+      bloodGroup: input.bloodGroup ?? null,
     };
 
     // Save to profiles and members table
@@ -509,6 +519,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         position: newProfile.position,
         status: newProfile.status,
         approved_by: newProfile.approvedBy,
+        department: input.department ?? null,
+        student_session: input.session ?? null,
+        phone: input.phone ?? null,
+        hall: input.hall ?? null,
+        blood_group: input.bloodGroup ?? null,
       }, { onConflict: 'id' });
 
       if (autoApproved) {
@@ -517,13 +532,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           uid: uid,
           name: input.name,
           photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          department: 'অনুল্লেখিত',
-          session: '২০২২-২৩',
-          hall: 'অনুল্লেখিত',
+          department: input.department || 'অনুল্লেখিত',
+          session: input.session || '২০২২-২৩',
+          hall: input.hall || 'অনুল্লেখিত',
           upazila: input.upazila,
-          phone: '',
+          phone: input.phone || '',
           email: input.email,
-          blood_group: 'B+',
+          blood_group: input.bloodGroup || 'B+',
           bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
           status: 'approved',
         }, { onConflict: 'id' });
@@ -544,18 +559,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (autoApproved) {
         const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
         const memList = memRaw ? JSON.parse(memRaw) : [];
-        const newMember = {
+        const newMember: MemberProfile = {
           id: uid,
           uid,
           name: input.name,
           photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          department: 'অনুল্লেখিত',
-          session: '২০২২-২৩',
-          hall: 'অনুল্লেখিত',
+          department: input.department || 'অনুল্লেখিত',
+          session: input.session || '২০২২-২৩',
+          hall: input.hall || 'অনুল্লেখিত',
           upazila: input.upazila,
-          phone: '',
+          phone: input.phone || '',
           email: input.email,
-          bloodGroup: 'B+',
+          bloodGroup: input.bloodGroup || 'B+',
           bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
           status: 'approved',
           createdAt: Date.now(),

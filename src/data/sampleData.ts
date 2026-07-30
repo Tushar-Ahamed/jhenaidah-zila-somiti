@@ -26,10 +26,10 @@ export const ORG_INFO = {
 };
 
 export const STATS = [
-  { label: 'সদস্য সংখ্যা', value: 342, suffix: '+' },
+  { label: 'সদস্য সংখ্যা', value: 0, suffix: '' },
   { label: 'উপজেলা শাখা', value: 6, suffix: '' },
-  { label: 'আয়োজিত অনুষ্ঠান', value: 48, suffix: '+' },
-  { label: 'বছর অতিবাহিত', value: 13, suffix: '' },
+  { label: 'আয়োজিত অনুষ্ঠান', value: 0, suffix: '' },
+  { label: 'বছর অতিবাহিত', value: 14, suffix: '' },
 ];
 
 export const NOTICES: Notice[] = [

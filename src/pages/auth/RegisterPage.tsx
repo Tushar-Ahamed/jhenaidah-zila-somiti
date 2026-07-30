@@ -1,11 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Mail, Lock, User, UserPlus, GraduationCap, BookOpen, Award } from 'lucide-react';
+import { Mail, Lock, User, UserPlus, GraduationCap, BookOpen, Award, Phone, Building, Droplet } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 import { useAuth, AuthError } from '@/context/AuthContext';
-import type { UserRole, UpazilaName } from '@/types';
-import { UPAZILA_OPTIONS, ROLE_LABELS } from '@/types';
+import type { UserRole, UpazilaName, MemberProfile } from '@/types';
+import { UPAZILA_OPTIONS, ROLE_LABELS, DEPARTMENTS, SESSIONS, BLOOD_GROUPS } from '@/types';
 
 interface FormValues {
   name: string;
@@ -14,6 +14,11 @@ interface FormValues {
   confirm: string;
   role: Extract<UserRole, 'student' | 'teacher' | 'alumni'>;
   upazila: UpazilaName;
+  department: string;
+  session: string;
+  phone: string;
+  hall: string;
+  bloodGroup: MemberProfile['bloodGroup'];
 }
 
 const roleOptions: { value: FormValues['role']; label: string; icon: typeof GraduationCap }[] = [
@@ -26,7 +31,14 @@ export function RegisterPage() {
   const { register: registerUser } = useAuth();
   const navigate = useNavigate();
   const { register, handleSubmit, watch, formState: { errors } } = useForm<FormValues>({
-    defaultValues: { role: 'student', upazila: 'ঝিনাইদহ সদর' },
+    defaultValues: {
+      role: 'student',
+      upazila: 'ঝিনাইদহ সদর',
+      department: 'কম্পিউটার সায়েন্স',
+      session: '২০২২-২৩',
+      hall: 'শহীদ জহুরুল হক হল',
+      bloodGroup: 'B+',
+    },
   });
   const [loading, setLoading] = useState(false);
   const password = watch('password');
@@ -40,12 +52,17 @@ export function RegisterPage() {
         password: data.password,
         role: data.role,
         upazila: data.upazila,
+        department: data.department,
+        session: data.session,
+        phone: data.phone,
+        hall: data.hall,
+        bloodGroup: data.bloodGroup,
       });
       const isAutoApproved = data.role === 'student' || data.role === 'alumni';
       toast.success(isAutoApproved
-        ? 'নিবন্ধন সফল! আপনি এখন লগইন করতে পারেন।'
+        ? 'নিবন্ধন সফল! আপনার প্রোফাইল সদস্য তালিকায় যোগ হয়েছে।'
         : 'নিবন্ধন সফল! প্রশাসকের অনুমোদনের অপেক্ষায়।');
-      navigate(isAutoApproved ? '/login' : '/pending-approval');
+      navigate(isAutoApproved ? '/members' : '/pending-approval');
     } catch (e) {
       if (e instanceof AuthError) toast.error(e.message);
       else toast.error('নিবন্ধন ব্যর্থ। আবার চেষ্টা করুন।');
@@ -57,7 +74,7 @@ export function RegisterPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white">নিবন্ধন করুন</h1>
-      <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">শিক্ষার্থী, শিক্ষক ও প্রাক্তন ছাত্ররা নিবন্ধন করতে পারেন</p>
+      <p className="mt-1.5 text-sm text-gray-500 dark:text-gray-400">শিক্ষার্থী, শিক্ষক ও প্রাক্তন ছাত্ররা নিবন্ধন করে সদস্য তালিকায় যুক্ত হতে পারেন</p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 space-y-4">
         {/* Role selection */}
@@ -85,18 +102,71 @@ export function RegisterPage() {
           {errors.name && <p className="mt-1 text-xs text-bd-red-600">{errors.name.message}</p>}
         </div>
 
-        <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">উপজেলা</label>
-          <select className="input mt-1.5" {...register('upazila', { required: 'উপজেলা আবশ্যক' })}>
-            {UPAZILA_OPTIONS.map((u) => (
-              <option key={u} value={u ?? ''}>{u}</option>
-            ))}
-          </select>
-          {errors.upazila && <p className="mt-1 text-xs text-bd-red-600">{errors.upazila.message}</p>}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">মোবাইল নম্বর (Phone)</label>
+            <div className="relative mt-1.5">
+              <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input className="input pl-10" placeholder="017xxxxxxxx" {...register('phone', { required: 'ফোন নম্বর আবশ্যক' })} />
+            </div>
+            {errors.phone && <p className="mt-1 text-xs text-bd-red-600">{errors.phone.message}</p>}
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">উপজেলা</label>
+            <select className="input mt-1.5" {...register('upazila', { required: 'উপজেলা আবশ্যক' })}>
+              {UPAZILA_OPTIONS.map((u) => (
+                <option key={u} value={u ?? ''}>{u}</option>
+              ))}
+            </select>
+            {errors.upazila && <p className="mt-1 text-xs text-bd-red-600">{errors.upazila.message}</p>}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">বিভাগ (Department)</label>
+            <select className="input mt-1.5" {...register('department', { required: 'বিভাগ আবশ্যক' })}>
+              {DEPARTMENTS.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">সেশন (Session)</label>
+            <select className="input mt-1.5" {...register('session', { required: 'সেশন আবশ্যক' })}>
+              {SESSIONS.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">হল (Hall)</label>
+            <div className="relative mt-1.5">
+              <Building className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input className="input pl-10" placeholder="হলের নাম" {...register('hall')} />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">রক্তের গ্রুপ</label>
+            <div className="relative mt-1.5">
+              <Droplet className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+              <select className="input pl-10" {...register('bloodGroup')}>
+                {BLOOD_GROUPS.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
         <div>
-          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">ইমেইল</label>
+          <label className="text-sm font-medium text-gray-700 dark:text-gray-300">ইমেইল (Email)</label>
           <div className="relative mt-1.5">
             <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <input type="email" className="input pl-10" placeholder="email@example.com" {...register('email', { required: 'ইমেইল আবশ্যক' })} />
@@ -124,7 +194,7 @@ export function RegisterPage() {
         </div>
 
         <button type="submit" disabled={loading} className="btn-primary w-full">
-          <UserPlus className="h-4 w-4" /> {loading ? 'প্রক্রিয়াকরণ...' : 'নিবন্ধন'}
+          <UserPlus className="h-4 w-4" /> {loading ? 'প্রক্রিয়াকরণ...' : 'নিবন্ধন করুন'}
         </button>
       </form>
 

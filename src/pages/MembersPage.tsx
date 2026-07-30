@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { SEO } from '@/components/SEO';
 import { FadeIn, StaggerGroup, StaggerItem } from '@/components/ui/FadeIn';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorState } from '@/components/ui/ErrorState';
+import { Modal } from '@/components/ui/Modal';
+import { Badge } from '@/components/ui/Badge';
 import { MemberCard, MemberCardSkeleton } from '@/components/MemberCard';
 import { listApprovedMembers, filterMembers, paginate, totalPages } from '@/services/memberService';
 import { DEPARTMENTS, SESSIONS, UPAZILA_OPTIONS, BLOOD_GROUPS, type MemberProfile, type UpazilaName } from '@/types';
-import { Search, SlidersHorizontal, X, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, SlidersHorizontal, X, Users, ChevronLeft, ChevronRight, Phone, Mail, GraduationCap, CalendarDays, Building, MapPin, Droplet, ExternalLink } from 'lucide-react';
 import { useDebounce } from '@/hooks/useDebounce';
 import { toBnNumber, classNames } from '@/utils/format';
 
@@ -23,6 +26,7 @@ export function MembersPage() {
   const [bloodGroup, setBloodGroup] = useState<MemberProfile['bloodGroup'] | 'all'>('all');
   const [page, setPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [selectedMember, setSelectedMember] = useState<MemberProfile | null>(null);
   const debounced = useDebounce(query, 250);
 
   const load = async () => {
@@ -63,7 +67,7 @@ export function MembersPage() {
       <FadeIn>
         <span className="chip bg-bd-green-100 text-bd-green-700 dark:bg-bd-green-900/40 dark:text-bd-green-300">সদস্য ডিরেক্টরি</span>
         <h1 className="section-title mt-4">আমাদের সদস্য</h1>
-        <p className="section-subtitle max-w-2xl">ঝিনাইদহ জেলা সমিতির অনুমোদিত সদস্যদের তালিকা। খুঁজুন, ফিল্টার করুন এবং পরিচিত হোন।</p>
+        <p className="section-subtitle max-w-2xl">ঝিনাইদহ জেলা সমিতির অনুমোদিত সদস্যদের তালিকা। যেকোনো সদস্য কার্ডে ক্লিক করে নাম, ফোন নম্বর, বিভাগ, সেশন ও ইমেইল বিস্তারিত দেখুন।</p>
       </FadeIn>
 
       {/* Search + filter toggle */}
@@ -145,7 +149,7 @@ export function MembersPage() {
             <StaggerGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {visible.map((m) => (
                 <StaggerItem key={m.id}>
-                  <MemberCard member={m} />
+                  <MemberCard member={m} onClick={() => setSelectedMember(m)} />
                 </StaggerItem>
               ))}
             </StaggerGroup>
@@ -189,6 +193,129 @@ export function MembersPage() {
           </>
         )}
       </div>
+
+      {/* Member Details Modal */}
+      {selectedMember && (
+        <Modal open={true} onClose={() => setSelectedMember(null)} title="সদস্যের বিস্তারিত তথ্য" size="md">
+          <div className="space-y-5">
+            {/* Header info */}
+            <div className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-bd-green-900 to-emerald-800 text-white relative overflow-hidden shadow-md">
+              <img
+                src={selectedMember.photo}
+                alt={selectedMember.name}
+                className="h-20 w-20 rounded-2xl object-cover border-2 border-white/40 shrink-0 shadow"
+              />
+              <div className="min-w-0 flex-1">
+                <h3 className="text-xl font-bold truncate">{selectedMember.name}</h3>
+                <p className="text-xs text-emerald-100 mt-1 flex items-center gap-1">
+                  <GraduationCap className="h-3.5 w-3.5" /> {selectedMember.department}
+                </p>
+                {selectedMember.bloodGroup && (
+                  <div className="mt-2">
+                    <Badge variant="red" className="text-xs"><Droplet className="h-3 w-3" /> {selectedMember.bloodGroup}</Badge>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Detailed attributes grid */}
+            <div className="grid gap-3 sm:grid-cols-2 text-xs">
+              <div className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 shrink-0">
+                  <Phone className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-gray-400 font-medium">মোবাইল নম্বর (Phone)</p>
+                  {selectedMember.phone ? (
+                    <a href={`tel:${selectedMember.phone}`} className="font-semibold text-bd-green-600 hover:underline block truncate">
+                      {selectedMember.phone}
+                    </a>
+                  ) : (
+                    <p className="font-medium text-gray-500">অনুল্লেখিত</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 shrink-0">
+                  <Mail className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-gray-400 font-medium">ইমেইল (Email)</p>
+                  {selectedMember.email ? (
+                    <a href={`mailto:${selectedMember.email}`} className="font-semibold text-blue-600 hover:underline block truncate">
+                      {selectedMember.email}
+                    </a>
+                  ) : (
+                    <p className="font-medium text-gray-500">অনুল্লেখিত</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 shrink-0">
+                  <GraduationCap className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-gray-400 font-medium">বিভাগ (Department)</p>
+                  <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedMember.department}</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 shrink-0">
+                  <CalendarDays className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-gray-400 font-medium">সেশন (Session)</p>
+                  <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedMember.session}</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 shrink-0">
+                  <MapPin className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-gray-400 font-medium">উপজেলা (Upazila)</p>
+                  <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedMember.upazila || '—'}</p>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/40 flex items-center gap-3">
+                <div className="grid h-9 w-9 place-items-center rounded-lg bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 shrink-0">
+                  <Building className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-gray-400 font-medium">হল (Hall)</p>
+                  <p className="font-semibold text-gray-900 dark:text-white truncate">{selectedMember.hall || 'অনুল্লেখিত'}</p>
+                </div>
+              </div>
+            </div>
+
+            {selectedMember.bio && (
+              <div className="p-3.5 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+                <p className="text-xs font-semibold text-gray-500 mb-1">বায়ো / পরিচিতি</p>
+                <p className="text-xs text-gray-700 dark:text-gray-300 leading-relaxed">{selectedMember.bio}</p>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center pt-2">
+              <Link
+                to={`/members/${selectedMember.id}`}
+                className="btn-primary text-xs flex items-center gap-1.5"
+              >
+                <ExternalLink className="h-3.5 w-3.5" /> সম্পূর্ণ প্রোফাইল লিঙ্কে যান
+              </Link>
+
+              <button onClick={() => setSelectedMember(null)} className="btn-ghost text-xs">
+                বন্ধ করুন
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
+
