@@ -186,28 +186,6 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
 
   let finalMembers = deduplicateMemberList(combined);
 
-  // Fallback: check avatar cache and demo user for custom profile photo
-  finalMembers = finalMembers.map((m) => {
-    if (!m.photo || m.photo.includes('unsplash.com') || m.photo.startsWith('blob:')) {
-      try {
-        const cached = localStorage.getItem(`avatar-cache:${m.uid || m.id}`);
-        if (cached && !cached.includes('unsplash.com') && !cached.startsWith('blob:')) {
-          return { ...m, photo: cached };
-        }
-        const demoRaw = localStorage.getItem('jhenaidah_demo_user');
-        if (demoRaw) {
-          const demoFs = JSON.parse(demoRaw);
-          if ((demoFs.uid === m.uid || demoFs.email?.toLowerCase() === m.email?.toLowerCase()) && demoFs.photoUrl && !demoFs.photoUrl.startsWith('blob:')) {
-            return { ...m, photo: demoFs.photoUrl };
-          }
-        }
-      } catch {
-        // ignore
-      }
-    }
-    return m;
-  });
-
   try {
     localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify(finalMembers));
   } catch {

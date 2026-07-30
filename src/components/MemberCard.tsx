@@ -11,36 +11,11 @@ interface MemberCardProps {
 
 const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
 
-function isInvalidPhotoUrl(url?: string | null): boolean {
-  if (!url) return true;
-  if (url.startsWith('blob:')) return true;
-  return false;
-}
-
 function resolvePhoto(m: MemberProfile): string {
-  if (m.photo && !m.photo.includes('unsplash.com') && !isInvalidPhotoUrl(m.photo)) return m.photo;
-  try {
-    if (m.email) {
-      const emailCached = localStorage.getItem(`avatar-cache:${m.email.toLowerCase()}`);
-      if (emailCached && !emailCached.includes('unsplash.com') && !isInvalidPhotoUrl(emailCached)) return emailCached;
-    }
-    if (m.uid || m.id) {
-      const idCached = localStorage.getItem(`avatar-cache:${m.uid || m.id}`);
-      if (idCached && !idCached.includes('unsplash.com') && !isInvalidPhotoUrl(idCached)) return idCached;
-    }
-    const demoRaw = localStorage.getItem('jhenaidah_demo_user');
-    if (demoRaw) {
-      const demo = JSON.parse(demoRaw);
-      const isMatch = (demo.email && m.email && demo.email.toLowerCase() === m.email.toLowerCase()) || demo.uid === m.uid || demo.uid === m.id;
-      const demoPhoto = demo.photoUrl || demo.photo;
-      if (isMatch && demoPhoto && !demoPhoto.includes('unsplash.com') && !isInvalidPhotoUrl(demoPhoto)) {
-        return demoPhoto;
-      }
-    }
-  } catch {
-    // ignore
+  if (m.photo && m.photo.trim().length > 0 && !m.photo.startsWith('blob:')) {
+    return m.photo;
   }
-  return (!isInvalidPhotoUrl(m.photo)) ? m.photo! : DEFAULT_AVATAR;
+  return DEFAULT_AVATAR;
 }
 
 export function MemberCard({ member, to, onClick }: MemberCardProps) {
