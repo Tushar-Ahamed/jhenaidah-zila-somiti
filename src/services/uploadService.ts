@@ -42,10 +42,10 @@ export async function optimizeImageForUpload(
   } = {}
 ): Promise<File> {
   try {
-    const maxWidth = options.maxWidth ?? 1024;
-    const maxHeight = options.maxHeight ?? 1024;
-    const quality = options.quality ?? 0.85;
-    const maxSizeMB = options.maxSizeMB ?? 10;
+    const maxWidth = options.maxWidth ?? 800;
+    const maxHeight = options.maxHeight ?? 800;
+    const quality = options.quality ?? 0.75;
+    const maxSizeMB = options.maxSizeMB ?? 2;
     const crop = options.crop ?? {};
 
     const source = file.type.includes('heic') || file.type.includes('heif')
@@ -92,7 +92,7 @@ export async function optimizeImageForUpload(
     if (!blob) throw new Error('Unable to create image blob');
 
     let qualityLevel = quality;
-    while (blob.size > maxSizeMB * 1024 * 1024 && qualityLevel > 0.5) {
+    while (blob.size > maxSizeMB * 1024 * 1024 && qualityLevel > 0.4) {
       qualityLevel -= 0.1;
       blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', qualityLevel));
     }
@@ -105,17 +105,48 @@ export async function optimizeImageForUpload(
 }
 
 export function fileToDataURL(file: File): Promise<string> {
+  return fileToCompressedDataURL(file, 400, 400, 0.7);
+}
+
+export function fileToCompressedDataURL(
+  file: File,
+  maxWidth = 400,
+  maxHeight = 400,
+  quality = 0.7
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
+    reader.onload = (e) => {
+      const src = e.target?.result as string;
+      if (!src) return reject(new Error('Empty file content'));
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let w = img.width;
+        let h = img.height;
+        if (w > maxWidth || h > maxHeight) {
+          const ratio = Math.min(maxWidth / w, maxHeight / h);
+          w = Math.round(w * ratio);
+          h = Math.round(h * ratio);
+        }
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(src);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => resolve(src);
+      img.src = src;
+    };
     reader.onerror = (err) => reject(err);
     reader.readAsDataURL(file);
   });
 }
 
-// Upload an image to Supabase Storage and return its public URL.
-// Falls back to a persistent Base64 Data URL when Storage is unreachable so the
-// UI remains functional across browser restarts.
 export async function uploadImage(
   file: File,
   path: string,
@@ -132,7 +163,7 @@ export async function uploadImage(
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
     return { url: data.publicUrl, path: filePath };
   } catch {
-    const dataUrl = await fileToDataURL(file);
+    const dataUrl = await fileToCompressedDataURL(file, 600, 600, 0.75);
     return { url: dataUrl, path: filePath };
   }
 }
@@ -187,7 +218,6 @@ export async function uploadAvatar(
   }
 
   onProgress?.(100);
-  const dataUrl = await fileToDataURL(file);
+  const dataUrl = await fileToCompressedDataURL(file, 400, 400, 0.7);
   return { url: dataUrl, path: filePath };
 }
-

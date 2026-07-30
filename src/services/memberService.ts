@@ -134,24 +134,26 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
     // ignore
   }
 
-  let combined = [...dbMembers];
+  let combined: MemberProfile[] = [];
 
   // 4. Fetch from global Cloud Sync Database (works across all devices & phones)
   try {
     const cloudMembers = await fetchCloudMembers();
     if (cloudMembers.length > 0) {
-      combined = [...cloudMembers.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) })), ...combined];
+      combined = [...cloudMembers.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) }))];
     }
   } catch {
     // ignore
   }
+
+  combined = [...combined, ...dbMembers];
 
   // 5. Merge local storage persisted members (jhenaidah_approved_members_v1 & jhenaidah_registered_users_v1)
   try {
     const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
     if (memRaw) {
       const localApproved: MemberProfile[] = JSON.parse(memRaw);
-      combined = [...localApproved.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) })), ...combined];
+      combined = [...combined, ...localApproved.map((m) => ({ ...m, photo: sanitizePhotoUrl(m.photo) }))];
     }
 
     const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
@@ -176,7 +178,7 @@ export async function listMembers(status?: MemberStatus): Promise<MemberProfile[
           createdAt: r.profile.createdAt || Date.now(),
           updatedAt: r.profile.updatedAt || Date.now(),
         }));
-      combined = [...localRegistered, ...combined];
+      combined = [...combined, ...localRegistered];
     }
   } catch {
     // ignore
