@@ -77,8 +77,15 @@ export function DashboardLayout() {
               <div className="flex items-center gap-3.5 px-1 pb-5 mb-3 border-b border-gray-100 dark:border-gray-800">
                 <div className="relative">
                   <div className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-tr from-bd-green-600 to-emerald-500 text-white font-bold text-lg shadow-[0_4px_16px_rgba(5,150,105,0.3)] shrink-0">
-                    {user?.photoURL ? (
-                      <img src={user.photoURL} alt="avatar" className="h-full w-full rounded-2xl object-cover" />
+                    {user?.photoURL && !user.photoURL.startsWith('blob:') ? (
+                      <img
+                        src={user.photoURL}
+                        alt="avatar"
+                        className="h-full w-full rounded-2xl object-cover"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
                     ) : (
                       user?.displayName?.[0] ?? user?.email?.[0] ?? 'U'
                     )}

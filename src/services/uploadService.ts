@@ -104,9 +104,18 @@ export async function optimizeImageForUpload(
   }
 }
 
+export function fileToDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (err) => reject(err);
+    reader.readAsDataURL(file);
+  });
+}
+
 // Upload an image to Supabase Storage and return its public URL.
-// Falls back to a local object URL when Storage is unreachable so the
-// UI remains functional in the demo environment.
+// Falls back to a persistent Base64 Data URL when Storage is unreachable so the
+// UI remains functional across browser restarts.
 export async function uploadImage(
   file: File,
   path: string,
@@ -123,8 +132,8 @@ export async function uploadImage(
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(filePath);
     return { url: data.publicUrl, path: filePath };
   } catch {
-    const url = URL.createObjectURL(file);
-    return { url, path: filePath };
+    const dataUrl = await fileToDataURL(file);
+    return { url: dataUrl, path: filePath };
   }
 }
 
@@ -178,6 +187,7 @@ export async function uploadAvatar(
   }
 
   onProgress?.(100);
-  const url = URL.createObjectURL(file);
-  return { url, path: filePath };
+  const dataUrl = await fileToDataURL(file);
+  return { url: dataUrl, path: filePath };
 }
+

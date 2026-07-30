@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Badge } from '@/components/ui/Badge';
 import { updateOwnProfile, writeAuditLog } from '@/services/userService';
 import { getMember } from '@/services/memberService';
-import { deleteProfileImageByUrl, optimizeImageForUpload, uploadAvatar } from '@/services/uploadService';
+import { deleteProfileImageByUrl, fileToDataURL, optimizeImageForUpload, uploadAvatar } from '@/services/uploadService';
 import { ROLE_LABELS, STATUS_LABELS, UPAZILA_OPTIONS, type UpazilaName } from '@/types';
 import { Activity, Award, BookOpen, Briefcase, Calendar, Camera, Clock3, Globe, ImagePlus, Loader2, Mail, MapPin, Phone, Save, Shield, Sparkles, User, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -234,10 +234,14 @@ export function DashboardProfile() {
       toast.success('প্রোফাইল ছবি আপডেট করা হয়েছে');
       closeCropper();
     } catch {
-      const fallbackUrl = URL.createObjectURL(selectedFile);
-      setAvatar(fallbackUrl);
-      window.localStorage.setItem(`avatar-cache:${user.uid}`, fallbackUrl);
-      toast.success('ছবির প্রিভিউ আপডেট করা হয়েছে');
+      try {
+        const fallbackUrl = await fileToDataURL(selectedFile);
+        setAvatar(fallbackUrl);
+        window.localStorage.setItem(`avatar-cache:${user.uid}`, fallbackUrl);
+        toast.success('ছবির প্রিভিউ আপডেট করা হয়েছে');
+      } catch {
+        toast.error('ছবি প্রসেস করতে সমস্যা হয়েছে');
+      }
       closeCropper();
     } finally {
       setUploading(false);

@@ -9,29 +9,38 @@ interface MemberCardProps {
   onClick?: () => void;
 }
 
+const DEFAULT_AVATAR = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+
+function isInvalidPhotoUrl(url?: string | null): boolean {
+  if (!url) return true;
+  if (url.startsWith('blob:')) return true;
+  return false;
+}
+
 function resolvePhoto(m: MemberProfile): string {
-  if (m.photo && !m.photo.includes('unsplash.com')) return m.photo;
+  if (m.photo && !m.photo.includes('unsplash.com') && !isInvalidPhotoUrl(m.photo)) return m.photo;
   try {
     if (m.email) {
       const emailCached = localStorage.getItem(`avatar-cache:${m.email.toLowerCase()}`);
-      if (emailCached && !emailCached.includes('unsplash.com')) return emailCached;
+      if (emailCached && !emailCached.includes('unsplash.com') && !isInvalidPhotoUrl(emailCached)) return emailCached;
     }
     if (m.uid || m.id) {
       const idCached = localStorage.getItem(`avatar-cache:${m.uid || m.id}`);
-      if (idCached && !idCached.includes('unsplash.com')) return idCached;
+      if (idCached && !idCached.includes('unsplash.com') && !isInvalidPhotoUrl(idCached)) return idCached;
     }
     const demoRaw = localStorage.getItem('jhenaidah_demo_user');
     if (demoRaw) {
       const demo = JSON.parse(demoRaw);
       const isMatch = (demo.email && m.email && demo.email.toLowerCase() === m.email.toLowerCase()) || demo.uid === m.uid || demo.uid === m.id;
-      if (isMatch && (demo.photoUrl || demo.photo) && !(demo.photoUrl || demo.photo).includes('unsplash.com')) {
-        return demo.photoUrl || demo.photo;
+      const demoPhoto = demo.photoUrl || demo.photo;
+      if (isMatch && demoPhoto && !demoPhoto.includes('unsplash.com') && !isInvalidPhotoUrl(demoPhoto)) {
+        return demoPhoto;
       }
     }
   } catch {
     // ignore
   }
-  return m.photo || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80';
+  return (!isInvalidPhotoUrl(m.photo)) ? m.photo! : DEFAULT_AVATAR;
 }
 
 export function MemberCard({ member, to, onClick }: MemberCardProps) {
@@ -43,12 +52,15 @@ export function MemberCard({ member, to, onClick }: MemberCardProps) {
       className="card overflow-hidden group h-full flex flex-col hover:shadow-glass cursor-pointer transition-all"
     >
       {/* Photo */}
-      <div className="relative h-44 overflow-hidden">
+      <div className="relative h-44 overflow-hidden bg-gray-100 dark:bg-gray-800">
         <img
           src={displayPhoto}
           alt={member.name}
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           loading="lazy"
+          onError={(e) => {
+            (e.target as HTMLImageElement).src = DEFAULT_AVATAR;
+          }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
         {member.bloodGroup && (
