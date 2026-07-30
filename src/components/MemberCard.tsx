@@ -132,3 +132,22 @@ export function MemberCard({ member, to, onClick }: MemberCardProps) {
 
   return <Link to={link}>{content}</Link>;
 }
+
+export function MemberCardSkeleton() {
+  return (
+    <div className="bg-card rounded-xl border border-border p-5 animate-pulse flex flex-col h-full">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex-shrink-0" />
+        <div className="flex-1 space-y-2">
+          <div className="h-4 bg-muted rounded w-3/4" />
+          <div className="h-3 bg-muted rounded w-1/2" />
+          <div className="h-4 bg-muted rounded w-1/3" />
+        </div>
+      </div>
+      <div className="mt-auto pt-3 border-t border-border/50 space-y-2">
+        <div className="h-3 bg-muted rounded w-2/3" />
+        <div className="h-3 bg-muted rounded w-1/2" />
+      </div>
+    </div>
+  );
+}
