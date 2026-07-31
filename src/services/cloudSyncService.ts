@@ -25,7 +25,7 @@ export function deduplicateMemberList(list: MemberProfile[]): MemberProfile[] {
     });
 
     if (existingIndex === -1) {
-      result.push({ ...m, status: 'approved' });
+      result.push({ ...m, status: m.status || 'approved' });
     } else {
       const existing = result[existingIndex];
       const isExistingDefault = !existing.photo || existing.photo.includes('unsplash.com') || existing.photo.startsWith('blob:');
@@ -36,7 +36,7 @@ export function deduplicateMemberList(list: MemberProfile[]): MemberProfile[] {
       result[existingIndex] = {
         ...existing,
         ...m,
-        status: 'approved',
+        status: m.status || existing.status || 'approved',
         email: m.email || existing.email,
         phone: m.phone || existing.phone,
         department: m.department && m.department !== 'অনুল্লেখিত' ? m.department : existing.department,

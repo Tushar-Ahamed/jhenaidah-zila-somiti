@@ -310,15 +310,65 @@ export async function listUsersByRole(role: UserRole): Promise<FirestoreUser[]> 
 }
 
 export async function listPendingUsers(): Promise<FirestoreUser[]> {
-  const { data, error } = await supabase.from('profiles').select('*').eq('status', 'pending');
-  if (error || !data) return [];
-  return data.map((r) => mapRow(r as Record<string, unknown>));
+  let list: FirestoreUser[] = [];
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').eq('status', 'pending');
+    if (!error && data) {
+      list = data.map((r) => mapRow(r as Record<string, unknown>));
+    }
+  } catch {
+    // ignore
+  }
+
+  // Also include locally registered users with pending status
+  try {
+    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+    if (regRaw) {
+      const regList = JSON.parse(regRaw);
+      for (const r of regList) {
+        if (r.profile && r.profile.status === 'pending') {
+          if (!list.some((u) => u.uid === r.profile.uid || u.email?.toLowerCase() === r.email?.toLowerCase())) {
+            list.push(r.profile);
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return list;
 }
 
 export async function listAllUsers(): Promise<FirestoreUser[]> {
-  const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
-  if (error || !data) return [];
-  return data.map((r) => mapRow(r as Record<string, unknown>));
+  let list: FirestoreUser[] = [];
+  try {
+    const { data, error } = await supabase.from('profiles').select('*').order('created_at', { ascending: false });
+    if (!error && data) {
+      list = data.map((r) => mapRow(r as Record<string, unknown>));
+    }
+  } catch {
+    // ignore
+  }
+
+  // Also include locally registered users
+  try {
+    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+    if (regRaw) {
+      const regList = JSON.parse(regRaw);
+      for (const r of regList) {
+        if (r.profile) {
+          if (!list.some((u) => u.uid === r.profile.uid || u.email?.toLowerCase() === r.email?.toLowerCase())) {
+            list.push(r.profile);
+          }
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return list;
 }
 
 export async function listUsersByUpazila(upazila: UpazilaName): Promise<FirestoreUser[]> {

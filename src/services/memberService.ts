@@ -83,21 +83,88 @@ export async function getMember(id: string): Promise<MemberProfile | null> {
 }
 
 export async function listMembers(status?: MemberStatus): Promise<MemberProfile[]> {
-  // Clear any old stale local storage caches that cause duplicate cards across browsers
+  let combined: MemberProfile[] = [];
+
+  // 1. Fetch from Supabase members table
   try {
-    localStorage.removeItem('jhenaidah_approved_members_v1');
-    localStorage.removeItem('jhenaidah_registered_users_v1');
-    localStorage.removeItem('jhenaidah_demo_user');
+    const { data } = await supabase.from(COL).select('*');
+    if (data && data.length > 0) {
+      combined.push(...data.map((r) => mapRow(r as Record<string, unknown>)));
+    }
   } catch {
     // ignore
   }
 
-  let combined: MemberProfile[] = [...MEMBERS];
-
+  // 2. Fetch cloud members
   try {
     const cloudMembers = await fetchCloudMembers();
     if (cloudMembers.length > 0) {
-      combined = deduplicateMemberList([...MEMBERS, ...cloudMembers]);
+      combined.push(...cloudMembers);
+    }
+  } catch {
+    // ignore
+  }
+
+  // 3. Fetch default hardcoded members
+  combined.push(...MEMBERS);
+
+  // 4. Fetch Supabase profiles (to capture pending user registrations)
+  try {
+    const { data } = await supabase.from('profiles').select('*');
+    if (data && data.length > 0) {
+      for (const p of data) {
+        const memStatus: MemberStatus = p.status === 'suspended' ? 'rejected' : p.status === 'pending' ? 'pending' : 'approved';
+        combined.push({
+          id: p.id,
+          uid: p.id,
+          name: p.name,
+          photo: p.photo_url || DEFAULT_AVATAR,
+          department: p.department || 'অনুল্লেখিত',
+          session: p.student_session || '২০২২-২৩',
+          hall: p.hall || 'অনুল্লেখিত',
+          upazila: (p.upazila || 'ঝিনাইদহ সদর') as UpazilaName,
+          phone: p.phone || '',
+          email: p.email,
+          bloodGroup: (p.blood_group as MemberProfile['bloodGroup']) || 'B+',
+          bio: `${p.name} - ${p.position || (p.role === 'teacher' ? 'শিক্ষক' : p.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী')}`,
+          status: memStatus,
+          createdAt: p.created_at ? new Date(p.created_at).getTime() : Date.now(),
+          updatedAt: p.updated_at ? new Date(p.updated_at).getTime() : Date.now(),
+        });
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  // 5. Check local registered users (for offline / client-side registration)
+  try {
+    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+    if (regRaw) {
+      const regList = JSON.parse(regRaw);
+      for (const r of regList) {
+        if (r.profile) {
+          const p = r.profile;
+          const memStatus: MemberStatus = p.status === 'suspended' ? 'rejected' : p.status === 'pending' ? 'pending' : 'approved';
+          combined.push({
+            id: p.uid || p.id || `reg-${r.email}`,
+            uid: p.uid || p.id,
+            name: p.name,
+            photo: p.photoUrl || DEFAULT_AVATAR,
+            department: p.department || 'অনুল্লেখিত',
+            session: p.studentSession || '২০২২-২৩',
+            hall: p.hall || 'অনুল্লেখিত',
+            upazila: (p.upazila || 'ঝিনাইদহ সদর') as UpazilaName,
+            phone: p.phone || '',
+            email: r.email,
+            bloodGroup: (p.bloodGroup as MemberProfile['bloodGroup']) || 'B+',
+            bio: `${p.name} - ${p.position || (p.role === 'teacher' ? 'শিক্ষক' : p.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী')}`,
+            status: memStatus,
+            createdAt: p.createdAt || Date.now(),
+            updatedAt: p.updatedAt || Date.now(),
+          });
+        }
+      }
     }
   } catch {
     // ignore
@@ -221,11 +288,36 @@ export async function updateMember(id: string, patch: UpdateMemberInput): Promis
 }
 
 export async function setMemberStatus(id: string, status: MemberStatus): Promise<void> {
-  const { error } = await supabase
-    .from(COL)
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq('id', id);
-  if (error) throw error;
+  const userStatus = status === 'approved' ? 'active' : status === 'rejected' ? 'suspended' : 'pending';
+
+  try {
+    await supabase.from(COL).update({ status, updated_at: new Date().toISOString() }).or(`id.eq.${id},uid.eq.${id}`);
+  } catch {
+    // ignore
+  }
+
+  try {
+    await supabase.from('profiles').update({ status: userStatus, updated_at: new Date().toISOString() }).or(`id.eq.${id}`);
+  } catch {
+    // ignore
+  }
+
+  // Update registered users in local storage
+  try {
+    const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+    if (regRaw) {
+      const regList = JSON.parse(regRaw);
+      const updated = regList.map((r: any) => {
+        if (r.profile?.uid === id || r.profile?.id === id || r.email?.toLowerCase() === id.toLowerCase() || `reg-${r.email}` === id) {
+          return { ...r, profile: { ...r.profile, status: userStatus } };
+        }
+        return r;
+      });
+      localStorage.setItem('jhenaidah_registered_users_v1', JSON.stringify(updated));
+    }
+  } catch {
+    // ignore
+  }
 }
 
 export async function approveMember(id: string): Promise<void> {

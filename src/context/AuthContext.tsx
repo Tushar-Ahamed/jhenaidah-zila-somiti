@@ -373,6 +373,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (foundProfile) {
+          if (!isApprovalRequired()) {
+            foundProfile.status = 'active';
+          }
           if (foundProfile.status === 'pending' && isApprovalRequired() && foundProfile.role !== 'district_admin' && foundProfile.role !== 'upazila_admin') {
             throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। অ্যাডমিন অনুমোদন দিলে লগইন করতে পারবেন।');
           }
@@ -382,8 +385,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(appU);
           return;
         }
-      } catch {
-        // ignore
+      } catch (e) {
+        if (e instanceof AuthError) throw e;
       }
 
       // 2. Check if admin credentials
@@ -428,7 +431,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 3. Fallback instant login for student/teacher/alumni if password >= 6 chars
       if (input.email && input.password && input.password.length >= 6) {
-        if (isApprovalRequired() && !input.email.includes('admin')) {
+        let isPending = false;
+        try {
+          const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
+          if (regRaw) {
+            const regList = JSON.parse(regRaw);
+            const matched = regList.find((r: any) => r.email.toLowerCase() === input.email.toLowerCase());
+            if (matched && matched.profile?.status === 'pending') {
+              isPending = true;
+            }
+          }
+        } catch {
+          // ignore
+        }
+
+        if (isApprovalRequired() && isPending && !input.email.includes('admin')) {
           throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। প্রশাসকের অনুমোদনের পর লগইন করতে পারবেন।');
         }
         const mockId = `user-${Date.now()}`;
@@ -462,6 +479,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!fs) {
       await supabase.auth.signOut();
       throw new AuthError('NO_USER_DOC', 'ব্যবহারকারীর তথ্য তৈরিতে সমস্যা হয়েছে।');
+    }
+
+    if (!isApprovalRequired()) {
+      fs.status = 'active';
     }
 
     if (fs.status === 'pending' && isApprovalRequired() && fs.role !== 'district_admin' && fs.role !== 'upazila_admin') {
@@ -546,23 +567,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         blood_group: input.bloodGroup ?? null,
       }, { onConflict: 'id' });
 
-      if (autoApproved) {
-        await supabase.from('members').upsert({
-          id: uid,
-          uid: uid,
-          name: input.name,
-          photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          department: input.department || 'অনুল্লেখিত',
-          session: input.session || '২০২২-২৩',
-          hall: input.hall || 'অনুল্লেখিত',
-          upazila: input.upazila,
-          phone: input.phone || '',
-          email: input.email,
-          blood_group: input.bloodGroup || 'B+',
-          bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
-          status: 'approved',
-        }, { onConflict: 'id' });
-      }
+      await supabase.from('members').upsert({
+        id: uid,
+        uid: uid,
+        name: input.name,
+        photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        department: input.department || 'অনুল্লেখিত',
+        session: input.session || '২০২২-২৩',
+        hall: input.hall || 'অনুল্লেখিত',
+        upazila: input.upazila,
+        phone: input.phone || '',
+        email: input.email,
+        blood_group: input.bloodGroup || 'B+',
+        bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
+        status: autoApproved ? 'approved' : 'pending',
+      }, { onConflict: 'id' });
     } catch {
       // ignore
     }
@@ -576,28 +595,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...regList.filter((r: any) => r.email.toLowerCase() !== input.email.toLowerCase()),
       ]));
 
-      if (autoApproved) {
-        const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
-        const memList = memRaw ? JSON.parse(memRaw) : [];
-        const newMember: MemberProfile = {
-          id: uid,
-          uid,
-          name: input.name,
-          photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
-          department: input.department || 'অনুল্লেখিত',
-          session: input.session || '২০২২-২৩',
-          hall: input.hall || 'অনুল্লেখিত',
-          upazila: input.upazila,
-          phone: input.phone || '',
-          email: input.email,
-          bloodGroup: input.bloodGroup || 'B+',
-          bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
-          status: 'approved',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
+      const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
+      const memList = memRaw ? JSON.parse(memRaw) : [];
+      const newMember: MemberProfile = {
+        id: uid,
+        uid,
+        name: input.name,
+        photo: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80',
+        department: input.department || 'অনুল্লেখিত',
+        session: input.session || '২০২২-২৩',
+        hall: input.hall || 'অনুল্লেখিত',
+        upazila: input.upazila,
+        phone: input.phone || '',
+        email: input.email,
+        bloodGroup: input.bloodGroup || 'B+',
+        bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
+        status: autoApproved ? 'approved' : 'pending',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
 
-        localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify([newMember, ...memList.filter((m: any) => m.email.toLowerCase() !== input.email.toLowerCase())]));
+      localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify([newMember, ...memList.filter((m: any) => m.email.toLowerCase() !== input.email.toLowerCase())]));
+      if (autoApproved) {
         try {
           await syncMemberToCloud(newMember);
           await syncAllLocalMembersToCloud();
