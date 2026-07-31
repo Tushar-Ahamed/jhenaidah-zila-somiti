@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useAuth, AuthError } from '@/context/AuthContext';
 import type { UserRole, UpazilaName, MemberProfile } from '@/types';
 import { UPAZILA_OPTIONS, ROLE_LABELS, DEPARTMENTS, SESSIONS, HALLS, BLOOD_GROUPS } from '@/types';
+import { isApprovalRequired } from '@/services/settingsService';
 
 interface FormValues {
   name: string;
@@ -61,10 +62,11 @@ export function RegisterPage() {
         hall: data.hall,
         bloodGroup: data.bloodGroup,
       });
-      const isAutoApproved = data.role === 'student' || data.role === 'alumni';
+      const approvalRequired = isApprovalRequired();
+      const isAutoApproved = !approvalRequired;
       toast.success(isAutoApproved
         ? 'নিবন্ধন সফল! আপনার প্রোফাইল সদস্য তালিকায় যোগ হয়েছে।'
-        : 'নিবন্ধন সফল! প্রশাসকের অনুমোদনের অপেক্ষায়।');
+        : 'নিবন্ধন সফল! আপনার আবেদনটি প্রশাসকের অনুমোদনের অপেক্ষায় রয়েছে।');
       navigate(isAutoApproved ? '/members' : '/pending-approval');
     } catch (e) {
       if (e instanceof AuthError) toast.error(e.message);

@@ -3,6 +3,7 @@ import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
 import { normalizeUserRole, type AppUser, type FirestoreUser, type UserRole, type UpazilaName } from '@/types';
 import { syncMemberToCloud, syncAllLocalMembersToCloud } from '@/services/cloudSyncService';
+import { isApprovalRequired } from '@/services/settingsService';
 
 export type AuthErrorCode =
   | 'EMAIL_NOT_VERIFIED'
@@ -124,9 +125,10 @@ async function ensureProfile(u: User): Promise<FirestoreUser | null> {
   const existing = await fetchProfile(u.id);
   const meta = u.user_metadata ?? {};
   const role = normalizeUserRole(meta.role ?? existing?.role ?? 'student');
-  const autoApproved = role === 'student' || role === 'alumni';
+  const approvalRequired = isApprovalRequired();
+  const autoApproved = !approvalRequired;
 
-  // Auto-activate students/alumni whose profile is missing or stuck in pending
+  // Auto-activate students/alumni whose profile is missing or stuck in pending ONLY IF approval mode is OFF (!approvalRequired)
   if (existing && autoApproved && existing.status === 'pending') {
     await supabase.from('profiles').update({
       status: 'active',
@@ -371,6 +373,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (foundProfile) {
+          if (foundProfile.status === 'pending' && isApprovalRequired() && foundProfile.role !== 'district_admin' && foundProfile.role !== 'upazila_admin') {
+            throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। অ্যাডমিন অনুমোদন দিলে লগইন করতে পারবেন।');
+          }
           const appU = toAppUser({ id: foundProfile.uid, email: foundProfile.email } as any, foundProfile);
           localStorage.setItem('jhenaidah_demo_user', JSON.stringify(foundProfile));
           setFirestoreUser(foundProfile);
@@ -423,6 +428,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // 3. Fallback instant login for student/teacher/alumni if password >= 6 chars
       if (input.email && input.password && input.password.length >= 6) {
+        if (isApprovalRequired() && !input.email.includes('admin')) {
+          throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। প্রশাসকের অনুমোদনের পর লগইন করতে পারবেন।');
+        }
         const mockId = `user-${Date.now()}`;
         const fallbackFs: FirestoreUser = {
           uid: mockId,
@@ -456,6 +464,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new AuthError('NO_USER_DOC', 'ব্যবহারকারীর তথ্য তৈরিতে সমস্যা হয়েছে।');
     }
 
+    if (fs.status === 'pending' && isApprovalRequired() && fs.role !== 'district_admin' && fs.role !== 'upazila_admin') {
+      await supabase.auth.signOut();
+      localStorage.removeItem('jhenaidah_demo_user');
+      setUser(null);
+      setFirestoreUser(null);
+      throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। প্রশাসকের অনুমোদনের পর লগইন করতে পারবেন।');
+    }
+
     setFirestoreUser(fs);
     setUser(toAppUser(data.user, fs));
   };
@@ -468,7 +484,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
       : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
-    const autoApproved = input.role === 'student' || input.role === 'alumni';
+    const approvalRequired = isApprovalRequired();
+    const autoApproved = !approvalRequired;
 
     try {
       const { data } = await supabase.auth.signUp({
