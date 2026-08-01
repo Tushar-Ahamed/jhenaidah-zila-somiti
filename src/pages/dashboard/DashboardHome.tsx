@@ -132,11 +132,11 @@ export function DashboardHome() {
         actorId: user!.uid,
         actorEmail: user!.email ?? '',
         actorRole: user!.role,
-        action: 'user_approved',
+        action: 'account_approved',
         targetId: uid,
-        details: 'শিক্ষক অ্যাকাউন্ট অনুমোদন করা হয়েছে',
+        details: 'নিবন্ধন অনুমোদন করা হয়েছে',
       });
-      toast.success('শিক্ষক অ্যাকাউন্ট অনুমোদিত হয়েছে');
+      toast.success('অ্যাকাউন্ট অনুমোদিত হয়েছে');
       await loadData();
     } catch {
       toast.error('অনুমোদনে সমস্যা হয়েছে');
@@ -386,13 +386,13 @@ export function DashboardHome() {
         )}
       </div>
 
-      {/* Teacher Approval Queue Widget */}
+      {/* Registration Approval Queue Widget */}
       <div className="card p-5 space-y-4">
         <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
           <div className="flex items-center gap-2">
             <BookOpen className="h-5 w-5 text-amber-500" />
             <h3 className="font-bold text-base text-gray-900 dark:text-white">
-              শিক্ষক যাচাই ও অনুমোদন তালিকা (Teacher Approval Queue)
+              নিবন্ধন অনুমোদন তালিকা (Registration Approval Queue)
             </h3>
             <Badge variant="amber">{pendingTeachers.length} জন অপেক্ষমাণ</Badge>
           </div>
@@ -405,7 +405,7 @@ export function DashboardHome() {
         {pendingTeachers.length === 0 ? (
           <div className="p-6 text-center text-xs text-gray-400 bg-gray-50 dark:bg-gray-800/40 rounded-xl">
             <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
-            কোনো শিক্ষক অ্যাকাউন্ট অনুমোদনের জন্য অপেক্ষমাণ নেই
+            কোনো নিবন্ধন অনুমোদনের অপেক্ষায় নেই
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -414,7 +414,7 @@ export function DashboardHome() {
                 <div>
                   <h4 className="font-bold text-xs text-gray-900 dark:text-white">{u.name}</h4>
                   <p className="text-[11px] text-gray-400 mt-0.5">{u.email}</p>
-                  <p className="text-[10px] text-amber-600 font-medium mt-1">উপজেলা: {u.upazila || 'অনুল্লেখিত'}</p>
+                  <p className="text-[10px] text-amber-600 font-medium mt-1">{u.role ? ROLE_LABELS[u.role as UserRole] : 'সদস্য'} · উপজেলা: {u.upazila || 'অনুল্লেখিত'}</p>
                 </div>
 
                 <div className="flex items-center gap-2">

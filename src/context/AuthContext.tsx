@@ -1,9 +1,8 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase';
-import { normalizeUserRole, type AppUser, type FirestoreUser, type UserRole, type UpazilaName } from '@/types';
+import { normalizeUserRole, type AppUser, type FirestoreUser, type UpazilaName } from '@/types';
 import { syncMemberToCloud, syncAllLocalMembersToCloud } from '@/services/cloudSyncService';
-import { isApprovalRequired } from '@/services/settingsService';
 
 export type AuthErrorCode =
   | 'EMAIL_NOT_VERIFIED'
@@ -125,11 +124,8 @@ async function ensureProfile(u: User): Promise<FirestoreUser | null> {
   const existing = await fetchProfile(u.id);
   const meta = u.user_metadata ?? {};
   const role = normalizeUserRole(meta.role ?? existing?.role ?? 'student');
-  const approvalRequired = isApprovalRequired();
-  const autoApproved = !approvalRequired;
-
-  // Auto-activate students/alumni whose profile is missing or stuck in pending ONLY IF approval mode is OFF (!approvalRequired)
-  if (existing && autoApproved && existing.status === 'pending') {
+  // Auto-activate any user stuck in pending status
+  if (existing && existing.status === 'pending') {
     await supabase.from('profiles').update({
       status: 'active',
       approved_by: u.id,
@@ -144,7 +140,7 @@ async function ensureProfile(u: User): Promise<FirestoreUser | null> {
     role,
     meta.name ?? (u.email ?? 'ব্যবহারকারী'),
     meta.upazila ?? null,
-    autoApproved ? 'active' : 'pending',
+    'active',
   );
 
   const { error } = await supabase.from('profiles').upsert({
@@ -245,6 +241,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!fs) {
             setUser(null);
             setFirestoreUser(null);
+          } else if (false) {
+            // Pending approval check removed
           } else {
             setFirestoreUser(fs);
             setUser(toAppUser(data.session.user, fs));
@@ -296,6 +294,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!fs) {
             setUser(null);
             setFirestoreUser(null);
+          } else if (false) {
+            // Pending approval check removed
           } else {
             setFirestoreUser(fs);
             setUser(toAppUser(session.user, fs));
@@ -331,54 +331,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error = e as any;
     }
 
-    // Fail-safe Login Handler:
+    // Fail-safe Login Handler (when Supabase auth fails):
     if (error || !data?.user) {
-      // 1. Check if user registered or promoted locally
+      // 1. Check if user registered locally
       try {
         const memRaw = localStorage.getItem('jhenaidah_approved_members_v1');
         const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
-        
+
         let foundProfile: FirestoreUser | null = null;
         if (regRaw) {
           const regList = JSON.parse(regRaw);
-          const matched = regList.find((r: any) => r.email.toLowerCase() === input.email.toLowerCase());
+          const matched = regList.find((r: any) => r.email.toLowerCase() === input.email.toLowerCase() && r.password === input.password);
           if (matched) foundProfile = matched.profile;
         }
 
-        if (memRaw) {
+        if (memRaw && !foundProfile) {
           const memList = JSON.parse(memRaw);
           const matchedMem = memList.find((m: any) => m.email?.toLowerCase() === input.email.toLowerCase());
           if (matchedMem && matchedMem.role) {
-            if (!foundProfile) {
-              foundProfile = {
-                uid: matchedMem.id || matchedMem.uid || `user-${Date.now()}`,
-                name: matchedMem.name,
-                email: matchedMem.email,
-                role: matchedMem.role,
-                committeeType: matchedMem.role === 'upazila_admin' ? 'upazila' : matchedMem.role === 'district_admin' ? 'district' : null,
-                upazila: matchedMem.upazila || 'ঝিনাইদহ সদর',
-                position: matchedMem.position || (matchedMem.role === 'upazila_admin' ? 'উপজেলা প্রশাসক' : 'সদস্য'),
-                photoUrl: matchedMem.photo || null,
-                status: 'active',
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-              };
-            } else {
-              foundProfile.role = matchedMem.role;
-              foundProfile.upazila = matchedMem.upazila || foundProfile.upazila;
-              foundProfile.position = matchedMem.position || foundProfile.position;
-              foundProfile.committeeType = matchedMem.role === 'upazila_admin' ? 'upazila' : matchedMem.role === 'district_admin' ? 'district' : foundProfile.committeeType;
-            }
+            foundProfile = {
+              uid: matchedMem.id || matchedMem.uid || `user-${Date.now()}`,
+              name: matchedMem.name,
+              email: matchedMem.email,
+              role: matchedMem.role,
+              committeeType: matchedMem.role === 'upazila_admin' ? 'upazila' : matchedMem.role === 'district_admin' ? 'district' : null,
+              upazila: matchedMem.upazila || 'ঝিনাইদহ সদর',
+              position: matchedMem.position || 'সদস্য',
+              photoUrl: matchedMem.photo || null,
+              status: 'active',
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            };
           }
         }
 
         if (foundProfile) {
-          if (!isApprovalRequired()) {
-            foundProfile.status = 'active';
-          }
-          if (foundProfile.status === 'pending' && isApprovalRequired() && foundProfile.role !== 'district_admin' && foundProfile.role !== 'upazila_admin') {
-            throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। অ্যাডমিন অনুমোদন দিলে লগইন করতে পারবেন।');
-          }
+          foundProfile.status = 'active';
           const appU = toAppUser({ id: foundProfile.uid, email: foundProfile.email } as any, foundProfile);
           localStorage.setItem('jhenaidah_demo_user', JSON.stringify(foundProfile));
           setFirestoreUser(foundProfile);
@@ -387,86 +375,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch (e) {
         if (e instanceof AuthError) throw e;
-      }
-
-      // 2. Check if admin credentials
-      if (input.email.includes('admin') || input.email === 'admin@jhenaidah.org' || input.password === 'admin123') {
-        const isUpazila = input.email.includes('upazila');
-        const mockRole: UserRole = isUpazila ? 'upazila_admin' : 'district_admin';
-        const mockUpazila: UpazilaName = isUpazila ? 'ঝিনাইদহ সদর' : null;
-        const mockId = isUpazila ? 'mock-upazila-admin-id' : 'mock-district-admin-id';
-
-        const mockFs: FirestoreUser = {
-          uid: mockId,
-          name: isUpazila ? 'উপজেলা প্রশাসক (ঝিনাইদহ সদর)' : 'জেলা প্রশাসক (ঝিনাইদহ)',
-          email: input.email,
-          role: mockRole,
-          committeeType: isUpazila ? 'upazila' : 'district',
-          upazila: mockUpazila,
-          position: isUpazila ? 'উপজেলা প্রশাসক' : 'জেলা প্রশাসক',
-          photoUrl: null,
-          status: 'active',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          approvedBy: mockId,
-        };
-
-        const mockAppUser: AppUser = {
-          uid: mockId,
-          email: input.email,
-          displayName: mockFs.name,
-          photoURL: null,
-          role: mockRole,
-          status: 'active',
-          upazila: mockUpazila,
-          position: mockFs.position,
-          committeeType: mockFs.committeeType,
-        };
-
-        localStorage.setItem('jhenaidah_demo_user', JSON.stringify(mockFs));
-        setFirestoreUser(mockFs);
-        setUser(mockAppUser);
-        return;
-      }
-
-      // 3. Fallback instant login for student/teacher/alumni if password >= 6 chars
-      if (input.email && input.password && input.password.length >= 6) {
-        let isPending = false;
-        try {
-          const regRaw = localStorage.getItem('jhenaidah_registered_users_v1');
-          if (regRaw) {
-            const regList = JSON.parse(regRaw);
-            const matched = regList.find((r: any) => r.email.toLowerCase() === input.email.toLowerCase());
-            if (matched && matched.profile?.status === 'pending') {
-              isPending = true;
-            }
-          }
-        } catch {
-          // ignore
-        }
-
-        if (isApprovalRequired() && isPending && !input.email.includes('admin')) {
-          throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। প্রশাসকের অনুমোদনের পর লগইন করতে পারবেন।');
-        }
-        const mockId = `user-${Date.now()}`;
-        const fallbackFs: FirestoreUser = {
-          uid: mockId,
-          name: input.email.split('@')[0],
-          email: input.email,
-          role: 'student',
-          committeeType: null,
-          upazila: 'ঝিনাইদহ সদর',
-          position: 'শিক্ষার্থী',
-          photoUrl: null,
-          status: 'active',
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          approvedBy: mockId,
-        };
-        localStorage.setItem('jhenaidah_demo_user', JSON.stringify(fallbackFs));
-        setFirestoreUser(fallbackFs);
-        setUser(toAppUser({ id: mockId, email: input.email } as any, fallbackFs));
-        return;
       }
 
       throw classifyAuthError(error);
@@ -481,17 +389,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new AuthError('NO_USER_DOC', 'ব্যবহারকারীর তথ্য তৈরিতে সমস্যা হয়েছে।');
     }
 
-    if (!isApprovalRequired()) {
-      fs.status = 'active';
-    }
-
-    if (fs.status === 'pending' && isApprovalRequired() && fs.role !== 'district_admin' && fs.role !== 'upazila_admin') {
-      await supabase.auth.signOut();
-      localStorage.removeItem('jhenaidah_demo_user');
-      setUser(null);
-      setFirestoreUser(null);
-      throw new AuthError('ACCOUNT_PENDING', 'আপনার অ্যাকাউন্টটি এখনো অনুমোদিত হয়নি। প্রশাসকের অনুমোদনের পর লগইন করতে পারবেন।');
-    }
+    // Auto-approve all users
+    fs.status = 'active';
 
     setFirestoreUser(fs);
     setUser(toAppUser(data.user, fs));
@@ -505,9 +404,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let uid = (typeof crypto !== 'undefined' && crypto.randomUUID)
       ? crypto.randomUUID()
       : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
-    const approvalRequired = isApprovalRequired();
-    const autoApproved = !approvalRequired;
-
     try {
       const { data } = await supabase.auth.signUp({
         email: input.email,
@@ -537,10 +433,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       upazila: input.upazila,
       position: input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী',
       photoUrl: null,
-      status: autoApproved ? 'active' : 'pending',
+      status: 'active',
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      approvedBy: autoApproved ? uid : null,
+      approvedBy: uid,
       department: input.department ?? null,
       studentSession: input.session ?? null,
       phone: input.phone ?? null,
@@ -548,7 +444,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       bloodGroup: input.bloodGroup ?? null,
     };
 
-    // Save to profiles and members table
     try {
       await supabase.from('profiles').upsert({
         id: uid,
@@ -580,7 +475,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: input.email,
         blood_group: input.bloodGroup || 'B+',
         bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
-        status: autoApproved ? 'approved' : 'pending',
+        status: 'active',
       }, { onConflict: 'id' });
     } catch {
       // ignore
@@ -610,19 +505,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: input.email,
         bloodGroup: input.bloodGroup || 'B+',
         bio: `${input.name} - ${input.role === 'teacher' ? 'শিক্ষক' : input.role === 'alumni' ? 'প্রাক্তন ছাত্র' : 'শিক্ষার্থী'}`,
-        status: autoApproved ? 'approved' : 'pending',
+        status: 'approved',
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
 
       localStorage.setItem('jhenaidah_approved_members_v1', JSON.stringify([newMember, ...memList.filter((m: any) => m.email.toLowerCase() !== input.email.toLowerCase())]));
-      if (autoApproved) {
-        try {
-          await syncMemberToCloud(newMember);
-          await syncAllLocalMembersToCloud();
-        } catch {
-          // ignore
-        }
+      try {
+        await syncMemberToCloud(newMember);
+        await syncAllLocalMembersToCloud();
+      } catch {
+        // ignore
       }
     } catch {
       // ignore

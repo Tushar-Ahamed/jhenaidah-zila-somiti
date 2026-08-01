@@ -396,23 +396,27 @@ export async function writeAuditLog(entry: Omit<AuditLog, 'id' | 'createdAt'>): 
 }
 
 export async function listAuditLogs(limit = 50): Promise<AuditLog[]> {
-  const { data, error } = await supabase
-    .from('audit_logs')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error || !data) return [];
-  return data.map((r) => ({
-    id: r.id as string,
-    actorId: r.actor_id as string,
-    actorEmail: r.actor_email as string,
-    actorRole: r.actor_role as UserRole,
-    action: r.action as AuditAction,
-    targetId: r.target_id ?? undefined,
-    targetEmail: r.target_email ?? undefined,
-    details: r.details ?? undefined,
-    createdAt: new Date(r.created_at as string).getTime(),
-  }));
+  try {
+    const { data, error } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    if (error || !data) return [];
+    return data.map((r) => ({
+      id: r.id as string,
+      actorId: r.actor_id as string,
+      actorEmail: r.actor_email as string,
+      actorRole: r.actor_role as UserRole,
+      action: r.action as AuditAction,
+      targetId: r.target_id ?? undefined,
+      targetEmail: r.target_email ?? undefined,
+      details: r.details ?? undefined,
+      createdAt: new Date(r.created_at as string).getTime(),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export function describeAction(action: AuditAction): string {

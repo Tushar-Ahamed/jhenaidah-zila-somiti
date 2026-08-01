@@ -25,8 +25,6 @@ export function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
 
   if (!user) return <Navigate to="/login" state={{ from: location.pathname }} replace />;
 
-  // Pending approval.
-  if (user.status === 'pending') return <Navigate to="/pending-approval" replace />;
   if (user.status === 'suspended' || user.status === 'deleted') {
     return <Navigate to="/unauthorized" replace />;
   }

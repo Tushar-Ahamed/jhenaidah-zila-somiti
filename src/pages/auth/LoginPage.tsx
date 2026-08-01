@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
-import { Mail, Lock, LogIn, Eye, EyeOff, Shield, RotateCcw, Sparkles, Trash2 } from 'lucide-react';
+import { Mail, Lock, LogIn, Eye, EyeOff, RotateCcw, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 import { useAuth, AuthError } from '@/context/AuthContext';
@@ -29,7 +29,6 @@ export function LoginPage() {
     } catch (e) {
       if (e instanceof AuthError) {
         if (e.code === 'EMAIL_NOT_VERIFIED') navigate('/verify-email');
-        else if (e.code === 'ACCOUNT_PENDING') navigate('/pending-approval');
         else if (e.code === 'ACCOUNT_SUSPENDED' || e.code === 'ACCOUNT_DELETED') navigate('/unauthorized');
         else toast.error(e.message || 'ইমেইল বা পাসওয়ার্ড ভুল হয়েছে।');
       } else {
@@ -40,28 +39,7 @@ export function LoginPage() {
     }
   };
 
-  // Quick Demo Login Handler
-  const handleQuickLogin = async (role: 'district_admin' | 'upazila_admin') => {
-    const demoEmail = role === 'district_admin' ? 'admin@jhenaidah.org' : 'upazila.admin@jhenaidah.org';
-    const demoPass = 'admin123';
 
-    setValue('email', demoEmail);
-    setValue('password', demoPass);
-
-    setLoading(true);
-    try {
-      await login({ email: demoEmail, password: demoPass, remember: true });
-      toast.success(role === 'district_admin' ? 'জেলা প্রশাসক হিসেবে ডিরেক্ট লগইন হয়েছে!' : 'উপজেলা প্রশাসক হিসেবে লগইন হয়েছে!');
-      navigate('/dashboard');
-    } catch {
-      // If demo account not present yet in local Supabase, redirect to AdminSetupPage
-      navigate('/admin-setup');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Clear session if user is stuck with old cached account
   const handleClearSession = async () => {
     try {
       await logout();
@@ -90,30 +68,6 @@ export function LoginPage() {
         >
           <Trash2 className="h-3 w-3" /> সেশন রিসেট
         </button>
-      </div>
-
-      {/* Quick Demo Login Bar */}
-      <div className="mt-4 rounded-xl border border-bd-green-300 dark:border-bd-green-800 bg-bd-green-50/70 dark:bg-bd-green-900/30 p-3.5 space-y-2">
-        <div className="flex items-center gap-1.5 font-bold text-xs text-bd-green-800 dark:text-bd-green-300">
-          <Sparkles className="h-4 w-4 text-amber-500" /> ১-ক্লিক ডিরেক্ট অ্যাডমিন লগইন:
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => handleQuickLogin('district_admin')}
-            className="btn-primary !py-1.5 !px-2.5 text-xs bg-bd-green-700 hover:bg-bd-green-800"
-          >
-            <Shield className="h-3.5 w-3.5" /> জেলা প্রশাসক
-          </button>
-
-          <button
-            type="button"
-            onClick={() => handleQuickLogin('upazila_admin')}
-            className="btn-primary !py-1.5 !px-2.5 text-xs bg-teal-700 hover:bg-teal-800"
-          >
-            <Shield className="h-3.5 w-3.5" /> উপজেলা প্রশাসক
-          </button>
-        </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
@@ -175,12 +129,6 @@ export function LoginPage() {
           </Link>
         </p>
 
-        <Link
-          to="/admin-setup"
-          className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline pt-2"
-        >
-          <Shield className="h-4 w-4" /> নতুন ৫টি জেলা / উপজেলা প্রশাসক সেটআপ করুন
-        </Link>
       </div>
     </div>
   );
